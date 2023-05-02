@@ -1,0 +1,31 @@
+#ifndef PROCESS_EXCEPTION_AK_H
+#define PROCESS_EXCEPTION_AK_H
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+/***
+    Function process_exception() for handling various exceptions 
+    using a generalized function 
+                                ***/
+
+
+////////////////////////////////////////////////////////////////////////////////                                
+
+#include <exception>
+#include <future>
+#include <iostream>
+#include <system_error>
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+template <typename T>
+void print_code_exception(const T& e);
+
+int process_exception(std::exception_ptr ep);
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+#endif
