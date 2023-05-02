@@ -43,7 +43,10 @@ void Selector::Select()
             runningDots.Enable();
             break;
         case mode_6:
-            //break;
+            if(!pacifica.GetReady())
+            	pacifica.Init(core, mode_6); 
+            pacifica.Enable();
+            break;
         case mode_7:
             //break;
         case mode_8:

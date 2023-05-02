@@ -213,4 +213,11 @@ void ModeRunningDots::IntLoop()
 }
 
 
+void ModePacifica::IntLoop()
+{
+    fill_solid(core->GetFstleds(), NUM_LEDS, CRGB::Cyan);
+    core->Show();
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////

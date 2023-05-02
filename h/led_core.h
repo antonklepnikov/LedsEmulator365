@@ -139,7 +139,6 @@ public:
 	virtual ~ModeStars() = default;
 };
 
-
 /////////////////////////////////////
 /// class ModeRunningDots ///////////
 /////////////////////////////////////
@@ -152,6 +151,18 @@ protected:
 public:
 	ModeRunningDots() = default;
 	virtual ~ModeRunningDots() = default;
+};
+
+/////////////////////////////////////
+/// class ModePacifica //////////////
+/////////////////////////////////////
+class ModePacifica : public Pattern {
+protected:
+	const double k_delay{ 0.5 };
+	virtual void IntLoop();
+public:
+	ModePacifica() = default;
+	virtual ~ModePacifica() = default;
 };
 
 

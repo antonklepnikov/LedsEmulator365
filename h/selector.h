@@ -30,6 +30,7 @@ private:
     ModeRainbowGlitter 		rainbowGlitter{};							   // 3
     ModeStars				stars{};			                           // 4	  
     ModeRunningDots			runningDots{};								   // 5
+    ModePacifica            pacifica{};                                    // 6
     ModeStop 				stop{};                                        // O
     void Select();
 public:
