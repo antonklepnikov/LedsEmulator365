@@ -68,7 +68,7 @@ class OkButton : public Pult {
 public:
     OkButton(int x, int y, const char *lb, LEDCore *c)
         : Pult(x, y, lb, c) { labelsize(FONT_SIZE_CONTROL_BUTTON); }
-    virtual void OnPress() { core->SetMode(mode_stop);  }
+    virtual void OnPress() { core->StopMode();  }
 };
 
 class BrightUpButton : public Pult {
@@ -90,14 +90,14 @@ class BrowseLeftButton : public Pult {
 public:
     BrowseLeftButton(int x, int y, const char *lb, LEDCore *c)
         : Pult(x, y, lb, c) { labelsize(FONT_SIZE_CONTROL_BUTTON); }
-    virtual void OnPress() {};
+    virtual void OnPress() { core->PrevMode(); }
 };
 
 class BrowseRightButton : public Pult {
 public:
     BrowseRightButton(int x, int y, const char *lb, LEDCore *c)
         : Pult(x, y, lb, c) { labelsize(FONT_SIZE_CONTROL_BUTTON); }
-    virtual void OnPress() {};
+    virtual void OnPress() { core->NextMode(); }
 };
 
 ////////////////////////////////////////////////////////////////////////////////

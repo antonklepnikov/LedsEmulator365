@@ -48,11 +48,20 @@ void Selector::Select()
             pacifica.Enable();
             break;
         case mode_7:
-            //break;
+           if(!rgb.GetReady())
+            	rgb.Init(core, mode_7); 
+            rgb.Enable();
+            break;
         case mode_8:
-            //break;
+           if(!cmyk.GetReady())
+            	cmyk.Init(core, mode_8); 
+            cmyk.Enable();
+            break;
         case mode_9:
-            //break;
+           if(!white.GetReady())
+            	white.Init(core, mode_6); 
+            white.Enable();
+            break;
         case mode_stop:
             if(!stop.GetReady()) { stop.Init(core, mode_stop); }
             stop.Enable();

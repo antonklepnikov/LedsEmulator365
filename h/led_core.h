@@ -29,27 +29,53 @@
 class LEDCore {
     friend class Window365;
 private:
-    OOFLBox *leds[NUM_LEDS];
-    CRGB fstleds[NUM_LEDS];
-    int bright{INIT_BRIGHT};
-    enum_mode mode{mode_null};
+    Timer core_timer;
+    std::array<OOFLBox*, NUM_LEDS> leds;
+    std::array<CRGB, NUM_LEDS> fstleds;
+    int bright{ INIT_BRIGHT };
+    const int k_min_num_mode{ 1 };
+    const int k_max_num_mode{ 9 };
+    enum_mode currentMode{ mode_null };
+    enum_mode savedMode{ mode_null };
+    bool stopped{ false };
 public:
 	// Initializing the pseudo-random number generator in the constructor:
-    LEDCore() { prandom_init(); }
+    LEDCore() : core_timer{}, leds{}, fstleds{} { 
+        prandom_init(); 
+    }
+
     // No copying and assignment:
     LEDCore(const LEDCore&) = delete;
     LEDCore& operator=(const LEDCore&) = delete;
+
+    CRGB& operator[](int idx) { return fstleds.at(static_cast<size_t>(idx)); }
+    CRGB* GetFstleds() { return fstleds.data(); }
+ 
     int GetBright() const { return bright; }
+    enum_mode GetMode() const { return currentMode; }
+    uint32_t GetMillis() const { return core_timer.Elapsed() * 1000;  }
+ 
     void SetBright(int b) { bright = b; }
-    enum_mode GetMode() const { return mode; }
-    void SetMode(enum_mode m) { mode = m; }
-    CRGB& operator[](int idx) { return fstleds[idx]; }
-    CRGB* GetFstleds() { return fstleds; }
+    void SetMode(enum_mode m) { currentMode = m; }
+    void StopMode();
+    void PrevMode();
+    void NextMode();
+ 
     void Show();
     void Clear();
     void Waits(double sec);
-    void Fill(int r, int g, int b);    
+    void Fill(int r, int g, int b);
 };
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// SUPPORT FUNCTIONS //////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+template <typename T, std::size_t size>
+void fill_in_turn(LEDCore *core, 
+                  const std::array<T, size> &carr, 
+                  size_t shift_color = 0);
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -157,43 +183,25 @@ public:
 /// class ModePacifica //////////////
 /////////////////////////////////////
 
-// 	FROM FASTLED_PORT:
-//	- GET_MILLIS()
-//	- CRGBPalette16
-//	+ scale8
-//	- scale16
-//	- sin8()
-//	- sin16()
-//	- beat8()
-//	- beat16()
-//	- beatsin8()
-//	- beatsin16()
-//	- beatsin88()
-//  - getAverageLight()
-
 class ModePacifica : public Pattern {
 protected:
 	const double k_delay{ 0.02 };
 	
-	/*
 	CRGBPalette16 pacifica_palette_1 = 
-    { 0x000507, 0x000409, 0x00030B, 0x00030D, 
-      0x000210, 0x000212, 0x000114, 0x000117, 
-      0x000019, 0x00001C, 0x000026, 0x000031, 
-      0x00003B, 0x000046, 0x14554B, 0x28AA50 };
-	CRGBPalette16 pacifica_palette_2 = 
-    { 0x000507, 0x000409, 0x00030B, 0x00030D, 
-      0x000210, 0x000212, 0x000114, 0x000117, 
-      0x000019, 0x00001C, 0x000026, 0x000031, 
-      0x00003B, 0x000046, 0x0C5F52, 0x19BE5F };
+	    { 0x000507, 0x000409, 0x00030B, 0x00030D, 
+          0x000210, 0x000212, 0x000114, 0x000117, 
+          0x000019, 0x00001C, 0x000026, 0x000031, 
+          0x00003B, 0x000046, 0x14554B, 0x28AA50 };
+	CRGBPalette16 pacifica_palette_2 =
+	    { 0x000507, 0x000409, 0x00030B, 0x00030D, 
+          0x000210, 0x000212, 0x000114, 0x000117, 
+          0x000019, 0x00001C, 0x000026, 0x000031, 
+          0x00003B, 0x000046, 0x0C5F52, 0x19BE5F };
 	CRGBPalette16 pacifica_palette_3 = 
-    { 0x000208, 0x00030E, 0x000514, 0x00061A, 
-      0x000820, 0x000927, 0x000B2D, 0x000C33, 
-      0x000E39, 0x001040, 0x001450, 0x001860, 
-      0x001C70, 0x002080, 0x1040BF, 0x2060FF };
-	*/
-	
-	/*
+        { 0x000208, 0x00030E, 0x000514, 0x00061A, 
+          0x000820, 0x000927, 0x000B2D, 0x000C33, 
+          0x000E39, 0x001040, 0x001450, 0x001860, 
+          0x001C70, 0x002080, 0x1040BF, 0x2060FF };
 	// Add one layer of waves into the led array
 	void pacifica_one_layer(CRGBPalette16& p, 
 	          			    uint16_t cistart, uint16_t wavescale, 
@@ -203,12 +211,49 @@ protected:
 	void pacifica_add_whitecaps();
 	// Deepen the blues and greens
 	void pacifica_deepen_colors();
-	*/
-	
 	virtual void IntLoop();
 public:
 	ModePacifica() = default;
 	virtual ~ModePacifica() = default;
+};
+
+/////////////////////////////////////
+/// class ModeRGB ///////////////////
+/////////////////////////////////////
+class ModeRGB : public Pattern {
+protected:
+	const double k_delay{ 0.5 };
+	std::array<CRGB, 3> carr{ CRGB::Red, CRGB::Green, CRGB::Blue };
+	virtual void IntLoop();
+public:
+	ModeRGB() = default;
+	virtual ~ModeRGB() = default;
+};
+
+/////////////////////////////////////
+/// class ModeCMYK //////////////////
+/////////////////////////////////////
+class ModeCMYK : public Pattern {
+protected:
+	const double k_delay{ 0.5 };
+	std::array<CRGB, 4> carr{ CRGB::Cyan, CRGB::Magenta, 
+	                          CRGB::Yellow, CRGB::Black };
+	virtual void IntLoop();
+public:
+	ModeCMYK() = default;
+	virtual ~ModeCMYK() = default;
+};
+
+/////////////////////////////////////
+/// class ModeWhite /////////////////
+/////////////////////////////////////
+class ModeWhite : public Pattern {
+protected:
+	const double k_delay{ 0.5 };
+	virtual void IntLoop();
+public:
+	ModeWhite() = default;
+	virtual ~ModeWhite() = default;
 };
 
 

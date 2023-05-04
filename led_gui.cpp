@@ -57,7 +57,7 @@ Window365 * Window365::Make(LEDCore *core, Selector *sel)
                 x = (vi < NUM_COLUMNS ? vi : (vi % NUM_COLUMNS)) * shift
                     + 2 * BREAKUP;
                 y = vi / NUM_COLUMNS * shift + 2 * BREAKUP;
-                core->leds[vi] = new LED(x, y);
+                core->leds.at(static_cast<size_t>(vi)) = new LED(x, y);
                 }
         } else {
             for(i = NUM_COLUMNS - 1, k = 0; i >= 0; --i, k += 2) {
@@ -66,7 +66,7 @@ Window365 * Window365::Make(LEDCore *core, Selector *sel)
                 x = (vi < NUM_COLUMNS ? vi : (vi % NUM_COLUMNS)) * shift
                     + 2 * BREAKUP;
                 y = vi / NUM_COLUMNS * shift + 2 * BREAKUP;
-                core->leds[ivi] = new LED(x, y);
+                core->leds.at(static_cast<size_t>(ivi)) = new LED(x, y);
             }
         }
     }
@@ -74,21 +74,27 @@ Window365 * Window365::Make(LEDCore *core, Selector *sel)
     for(i = 0; i < NUM_DIG_BUTTONS; ++i) {
         x = (i < 3 ? i : (i % 3)) * shift + 2 * BREAKUP;
         y = ((i / 3) * shift + BREAKUP) + (rows * shift + 2 * BREAKUP);
-        sel->buttons[i] = new ModeButton (x, y, buttons_lbl[i], core,
-                                  static_cast<enum_mode>(i+1));
+        sel->buttons.at(static_cast<size_t>(i)) = 
+            new ModeButton(x, y, buttons_lbl[i], 
+                           core, static_cast<enum_mode>(i+1));
     }
     // Control buttons;
     x = w - (2 * ITEM_SIZE + 3 * BREAKUP);
     y = rows * shift + 3 * BREAKUP;
-    sel->buttons[B_UP] = new BrightUpButton (x, y, "@8->", core);
+    sel->buttons.at(static_cast<size_t>(B_UP)) = 
+        new BrightUpButton (x, y, "@8->", core);
     x -= shift; y += shift;
-    sel->buttons[B_LEFT] = new BrowseLeftButton (x, y, "@undo", core);
+    sel->buttons.at(static_cast<size_t>(B_LEFT)) = 
+        new BrowseLeftButton (x, y, "@undo", core);
     x += shift;
-    sel->buttons[B_OK] = new OkButton (x, y, "@-2circle", core);
+    sel->buttons.at(static_cast<size_t>(B_OK)) = 
+        new OkButton (x, y, "@-2circle", core);
     x += shift;
-    sel->buttons[B_RIGHT] = new BrowseRightButton (x, y, "@redo", core);
+    sel->buttons.at(static_cast<size_t>(B_RIGHT)) = 
+        new BrowseRightButton (x, y, "@redo", core);
     x -= shift; y += shift;
-    sel->buttons[B_DOWN] = new BrightDownButton (x, y, "@2->", core);
+    sel->buttons.at(static_cast<size_t>(B_DOWN)) = 
+        new BrightDownButton (x, y, "@2->", core);
     win->end();
     return win;
 }

@@ -15,14 +15,29 @@
 #include <cstdint> 	// uint8_t;
 #include <cstdlib> 	// srand(), rand();
 #include <ctime> 	// time();
+#include <cstring>  // memmove();
 
 
 ////////////////////////////////////////////////////////////////////////////////
 
 typedef uint8_t fract8;
+typedef uint8_t fract16;
+typedef uint16_t accum88;
+
+/// Pre-calculated lookup table used in sin8() and cos8() functions
+const uint8_t b_m16_interleave[] = { 0, 49, 49, 41, 90, 27, 117, 10 };
 
 struct CRGB;
 struct CHSV;
+
+/// Color interpolation options for palette.
+enum TBlendType {
+    NOBLEND=0,            /// No interpolation between palette entries;
+    LINEARBLEND=1,        /// Linear interpolation between palette entries, 
+                          /// with wrap-around from end to the beginning again;
+    LINEARBLEND_NOWRAP=2  /// Linear interpolation between palette entries, 
+                          /// but no wrap-around.
+};
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -31,6 +46,7 @@ struct CHSV;
 void prandom_init();
 /// Returns a pseudo-random number from the specified range [1 - upper].
 int prandom_range(int upper);
+
 
 /// Checks that 0 <= val <= 255
 int check_8(int val);
@@ -46,12 +62,18 @@ uint8_t qmul8( uint8_t i, uint8_t j);
 /// the numerator of a fraction whose denominator is 256. 
 /// In other words, it computes i * (scale / 256)
 uint8_t scale8( uint8_t i, fract8 scale);
+/// The "video" version of scale8 guarantees that the output 
+/// will be only be zero if one or both of the inputs are zero.
+uint8_t scale8_video(uint8_t i, fract8 scale);
+/// Scale a 16-bit unsigned value by an 16-bit value, which is treated
+/// as the numerator of a fraction whose denominator is 65536. 
+/// In other words, it computes i * (scale / 65536).
+uint16_t scale16(uint16_t i, fract16 scale);
 
 /// Scale three one-byte values by a fourth one, which is treated as
 /// the numerator of a fraction whose demominator is 256. 
 /// In other words, it computes r,g,b * (scale / 256)
 void nscale8x3( uint8_t& r, uint8_t& g, uint8_t& b, fract8 scale);
-
 /// Scale three one-byte values by a fourth one, which is treated asnscale8x3_video
 /// the numerator of a fraction whose demominator is 256. 
 /// In other words, it computes r,g,b * (scale / 256), ensuring
@@ -59,18 +81,73 @@ void nscale8x3( uint8_t& r, uint8_t& g, uint8_t& b, fract8 scale);
 /// argument.
 void nscale8x3_video( uint8_t& r, uint8_t& g, uint8_t& b, fract8 scale);
 
+uint8_t map8(uint8_t in, uint8_t rangeStart, uint8_t rangeEnd);
+
+uint8_t lsrX4(uint8_t dividend);
+
+uint8_t sin8(uint8_t theta);
+uint16_t sin16(uint16_t theta);
+
+/// Generates a 16-bit "sawtooth" wave at a given BPM, with BPM
+/// specified in Q8.8 fixed-point format.
+/// beats_per_minute_88 the frequency of the wave, in Q8.8 format
+/// timebase the time offset of the wave from the millis() timer
+/// The BPM parameter **MUST** be provided in Q8.8 format! E.g.
+/// for 120 BPM it would be 120*256 = 30720. If you just want to specify
+/// "120", use beat16() or beat8().
+uint16_t beat88b(uint32_t time, accum88 beats_per_minute_88, 
+                 uint32_t timebase = 0);
+/// Generates a 16-bit "sawtooth" wave at a given BPM
+/// beats_per_minute the frequency of the wave, in decimal
+/// timebase the time offset of the wave from the millis() timer
+uint16_t beat16(uint32_t time, accum88 beats_per_minute, uint32_t timebase = 0);
+/// Generates an 8-bit "sawtooth" wave at a given BPM
+/// beats_per_minute the frequency of the wave, in decimal
+/// timebase the time offset of the wave from the millis() timer
+uint8_t beat8(uint32_t time, accum88 beats_per_minute, uint32_t timebase = 0);
+
+/// Generates a 16-bit sine wave at a given BPM that oscillates within
+/// a given range.
+/// beats_per_minute_88 the frequency of the wave, in Q8.8 format
+/// lowest the lowest output value of the sine wave
+/// highest the highest output value of the sine wave
+/// timebase the time offset of the wave from the millis() timer
+/// phase_offset phase offset of the wave from the current position
+/// The BPM parameter **MUST** be provided in Q8.8 format! E.g.
+/// for 120 BPM it would be 120*256 = 30720. If you just want to specify
+/// "120", use beatsin16() or beatsin8().
+uint16_t beatsin88(uint32_t time, accum88 beats_per_minute_88, 
+                   uint16_t lowest = 0, uint16_t highest = 65535,
+                   uint32_t timebase = 0, uint16_t phase_offset = 0);
+/// Generates a 16-bit sine wave at a given BPM that oscillates within
+/// a given range.
+/// beats_per_minute the frequency of the wave, in decimal
+/// lowest the lowest output value of the sine wave
+/// highest the highest output value of the sine wave
+/// timebase the time offset of the wave from the millis() timer
+/// phase_offset phase offset of the wave from the current position
+uint16_t beatsin16(uint32_t time, accum88 beats_per_minute, 
+                   uint16_t lowest = 0, uint16_t highest = 65535,
+                   uint32_t timebase = 0, uint16_t phase_offset = 0);
+/// Generates an 8-bit sine wave at a given BPM that oscillates within
+/// a given range.
+/// beats_per_minute the frequency of the wave, in decimal
+/// lowest the lowest output value of the sine wave
+/// highest the highest output value of the sine wave
+/// timebase the time offset of the wave from the millis() timer
+/// phase_offset phase offset of the wave from the current position
+uint8_t beatsin8(uint32_t time, accum88 beats_per_minute, 
+                 uint8_t lowest = 0, uint8_t highest = 255,
+                 uint32_t timebase = 0, uint8_t phase_offset = 0);
+
 /// Convert a hue, saturation, and value to RGB using a visually balanced 
 /// rainbow (vs a straight mathematical spectrum). 
 /// This 'rainbow' yields better yellow and orange than a straight 'spectrum'.
 void hsv2rgb_rainbow( const CHSV& hsv, CRGB& rgb);
 
-/// The "video" version of scale8 guarantees that the output 
-/// will be only be zero if one or both of the inputs are zero.
-uint8_t scale8_video(uint8_t i, fract8 scale);
-
 
 ////////////////////////////////////////////////////////////////////////////////
-/// CHSV OBJECT ////////////////////////////////////////////////////////////////
+/// CHSV TYPE //////////////////////////////////////////////////////////////////
 
 struct CHSV {
     /// Color hue. 
@@ -120,7 +197,7 @@ struct CHSV {
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// CRGB OBJECT ////////////////////////////////////////////////////////////////
+/// CRGB TYPE //////////////////////////////////////////////////////////////////
 
 struct CRGB {
 
@@ -402,7 +479,7 @@ struct CRGB {
         res.b = 255 - b;
         return res;
     }
-
+    
     /// Maximize the brightness of this CRGB object. 
     /// This makes the individual color channels as bright as possible
     /// while keeping the same value differences between channels.
@@ -421,9 +498,18 @@ struct CRGB {
         }
     }
     
+    /// Get the average of the R, G, and B values
+    uint8_t GetAverageLight( ) const {
+        const uint8_t eightyfive = 85;
+        uint8_t avg = scale8(r, eightyfive) + \
+                      scale8(g, eightyfive) + \
+                      scale8(b, eightyfive);
+        return avg;
+    }
+    
     /// Returns 0 or 1, depending on the lowest bit 
     /// of the sum of the color components.
-    uint8_t GetParity() {
+    uint8_t GetParity() const {
         uint8_t sum = r + g + b;
         return (sum & 0x01);
     }
@@ -614,6 +700,74 @@ struct CRGB {
 
 
 ////////////////////////////////////////////////////////////////////////////////
+/// CRGBPalette16 TYPE /////////////////////////////////////////////////////////
+
+struct CRGBPalette16 {
+public:
+    CRGB entries[16];
+
+    /// CRGB::CRGB()
+    CRGBPalette16() {};
+
+    /// Create palette from 16 CRGB values
+    CRGBPalette16(const CRGB& c00, const CRGB& c01, const CRGB& c02,
+                  const CRGB& c03, const CRGB& c04, const CRGB& c05,
+                  const CRGB& c06, const CRGB& c07, const CRGB& c08,
+                  const CRGB& c09, const CRGB& c10, const CRGB& c11,
+                  const CRGB& c12, const CRGB& c13, const CRGB& c14,
+                  const CRGB& c15) 
+    {
+        entries[0]=c00; entries[1]=c01; entries[2]=c02; entries[3]=c03;
+        entries[4]=c04; entries[5]=c05; entries[6]=c06; entries[7]=c07;
+        entries[8]=c08; entries[9]=c09; entries[10]=c10; entries[11]=c11;
+        entries[12]=c12; entries[13]=c13; entries[14]=c14; entries[15]=c15;
+    };
+
+    /// Copy constructor
+    CRGBPalette16(const CRGBPalette16& rhs) {
+        memmove((void*)&(entries[0]), &(rhs.entries[0]), sizeof(entries));
+    }
+    
+    /// Create palette from array of CRGB colors
+    CRGBPalette16(const CRGB rhs[16]) {
+        memmove((void*)&(entries[0]), &(rhs[0]), sizeof(entries));
+    }
+    
+    CRGBPalette16& operator=(const CRGBPalette16& rhs) {
+        memmove((void*)&(entries[0]), &(rhs.entries[0]), sizeof(entries));
+        return *this;
+    }
+    
+    /// Create palette from array of CRGB colors
+    CRGBPalette16& operator=(const CRGB rhs[16]) {
+        memmove((void*)&(entries[0]), &(rhs[0]), sizeof(entries));
+        return *this;
+    }
+    
+    bool operator==(const CRGBPalette16 &rhs) const {
+        const uint8_t* p = (const uint8_t*)(&(this->entries[0]));
+        const uint8_t* q = (const uint8_t*)(&(rhs.entries[0]));
+        if( p == q) return true;
+        for( uint8_t i = 0; i < (sizeof( entries)); ++i) {
+            if( *p != *q) return false;
+            ++p;
+            ++q;
+        }
+        return true;
+    }
+    bool operator!=(const CRGBPalette16 &rhs) const { return !( *this == rhs); }
+    
+    CRGB& operator[](uint8_t x) { return entries[x]; }
+    const CRGB& operator[](uint8_t x) const { return entries[x]; }
+    CRGB& operator[](int x) { return entries[(uint8_t)x]; }
+    const CRGB& operator[](int x) const { return entries[(uint8_t)x]; }
+
+    /// Get the underlying pointer to the CRGB entries making up the palette
+    operator CRGB*() { return &(entries[0]); }
+};
+
+
+////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
 void fill_solid( struct CRGB * targetArray, int numToFill, 
@@ -622,6 +776,11 @@ void fill_solid( struct CRGB * targetArray, int numToFill,
 void fill_rainbow(struct CRGB * targetArray, int numToFill,
                   uint8_t initialhue, uint8_t deltahue);
 
+
+CRGB ColorFromPalette(const CRGBPalette16& pal, 
+                      uint8_t index, uint8_t brightness, 
+                      TBlendType blendType);
+                      
 
 ////////////////////////////////////////////////////////////////////////////////
 

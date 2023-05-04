@@ -59,13 +59,28 @@ uint8_t qmul8( uint8_t i, uint8_t j)
 }
 
 
-uint8_t scale8( uint8_t i, fract8 scale)
+uint8_t scale8(uint8_t i, fract8 scale)
 {
     return ((uint16_t)i * (uint16_t)(scale) ) >> 8;
 }
 
 
-void nscale8x3( uint8_t& r, uint8_t& g, uint8_t& b, fract8 scale)
+uint8_t scale8_video(uint8_t i, fract8 scale)
+{
+    uint8_t j = (((int)i * (int)scale) >> 8) + ((i&&scale)?1:0);
+    return j;
+}
+
+
+uint16_t scale16(uint16_t i, fract16 scale)
+{
+    uint16_t result;
+    result = ((uint32_t)(i) * (1+(uint32_t)(scale))) / 65536;
+    return result;
+}
+
+
+void nscale8x3(uint8_t& r, uint8_t& g, uint8_t& b, fract8 scale)
 {
     r = ((int)r * (int)(scale) ) >> 8;
     g = ((int)g * (int)(scale) ) >> 8;
@@ -82,10 +97,136 @@ void nscale8x3_video( uint8_t& r, uint8_t& g, uint8_t& b, fract8 scale)
 }
 
 
-uint8_t scale8_video(uint8_t i, fract8 scale)
+uint8_t map8(uint8_t in, uint8_t rangeStart, uint8_t rangeEnd)
 {
-    uint8_t j = (((int)i * (int)scale) >> 8) + ((i&&scale)?1:0);
-    return j;
+    uint8_t rangeWidth = rangeEnd - rangeStart;
+    uint8_t out = scale8( in, rangeWidth);
+    out += rangeStart;
+    return out;
+}
+
+
+uint8_t lsrX4(uint8_t dividend)
+{ 
+    return dividend >>= 4;
+}  
+
+
+uint8_t sin8(uint8_t theta)
+{
+    uint8_t offset = theta;
+    if( theta & 0x40 ) {
+        offset = (uint8_t)255 - offset;
+    }
+    offset &= 0x3F; // 0..63
+
+    uint8_t secoffset  = offset & 0x0F; // 0..15
+    if( theta & 0x40) ++secoffset;
+
+    uint8_t section = offset >> 4; // 0..3
+    uint8_t s2 = section * 2;
+    const uint8_t* p = b_m16_interleave;
+    p += s2;
+    uint8_t b   =  *p;
+    ++p;
+    uint8_t m16 =  *p;
+
+    uint8_t mx = (m16 * secoffset) >> 4;
+
+    int8_t y = mx + b;
+    if( theta & 0x80 ) y = -y;
+
+    y += 128;
+
+    return static_cast<uint8_t>(y);;
+}
+
+
+uint16_t sin16(uint16_t theta)
+{
+    static const uint16_t base[] =
+    { 0, 6393, 12539, 18204, 23170, 27245, 30273, 32137 };
+    static const uint8_t slope[] =
+    { 49, 48, 44, 38, 31, 23, 14, 4 };
+
+    uint16_t offset = (theta & 0x3FFF) >> 3; // 0..2047
+    if( theta & 0x4000 ) offset = 2047 - offset;
+
+    uint8_t section = offset / 256; // 0..7
+    uint16_t b   = base[section];
+    uint8_t  m   = slope[section];
+
+    uint8_t secoffset8 = (uint8_t)(offset) / 2;
+
+    uint16_t mx = m * secoffset8;
+    int16_t  y  = mx + b;
+
+    if( theta & 0x8000 ) y = -y;
+
+    return static_cast<uint16_t>(y);
+}
+
+
+uint16_t beat88b(uint32_t time, accum88 beats_per_minute_88, uint32_t timebase)
+{
+    // BPM is 'beats per minute', or 'beats per 60000ms'.
+    // To avoid using the (slower) division operator, we
+    // want to convert 'beats per 60000ms' to 'beats per 65536ms',
+    // and then use a simple, fast bit-shift to divide by 65536.
+    //
+    // The ratio 65536:60000 is 279.620266667:256; we'll call it 280:256.
+    // The conversion is accurate to about 0.05%, more or less,
+    // e.g. if you ask for "120 BPM", you'll get about "119.93".
+    return ((time - timebase) * beats_per_minute_88 * 280) >> 16;
+}
+
+uint16_t beat16(uint32_t time, accum88 beats_per_minute, uint32_t timebase)
+{
+    // Convert simple 8-bit BPM's to full Q8.8 accum88's if needed
+    if(beats_per_minute < 256) beats_per_minute <<= 8;
+    return beat88b(time, beats_per_minute, timebase);
+}
+
+uint8_t beat8(uint32_t time, accum88 beats_per_minute, uint32_t timebase)
+{
+    return beat16(time, beats_per_minute, timebase) >> 8;
+}
+
+
+uint16_t beatsin88(uint32_t time, accum88 beats_per_minute_88, 
+                   uint16_t lowest, uint16_t highest,
+                   uint32_t timebase, uint16_t phase_offset)
+{
+    uint16_t beat = beat88b(time, beats_per_minute_88, timebase);
+    uint16_t beatsin = (sin16(beat + phase_offset) + 32768);
+    uint16_t rangewidth = highest - lowest;
+    uint16_t scaledbeat = scale16(beatsin, rangewidth);
+    uint16_t result = lowest + scaledbeat;
+    return result;
+}
+
+uint16_t beatsin16(uint32_t time, accum88 beats_per_minute, 
+                   uint16_t lowest, uint16_t highest,
+                   uint32_t timebase, uint16_t phase_offset)
+{
+    uint16_t beat = beat16(time, beats_per_minute, timebase);
+    uint16_t beatsin = (sin16(beat + phase_offset) + 32768);
+    uint16_t rangewidth = highest - lowest;
+    uint16_t scaledbeat = scale16(beatsin, rangewidth);
+    uint16_t result = lowest + scaledbeat;
+    return result;
+}
+
+uint8_t beatsin8(uint32_t time, accum88 beats_per_minute, 
+                 uint8_t lowest, uint8_t highest,
+                 uint32_t timebase, uint8_t phase_offset)
+{
+    uint8_t beat = beat8(time, beats_per_minute, timebase);
+    uint8_t beatsin = sin8(beat + phase_offset);
+    uint8_t rangewidth = highest - lowest;
+    uint8_t scaledbeat = scale8(beatsin, rangewidth);
+    uint8_t result = lowest + scaledbeat;
+    return result;
 }
 
 
@@ -338,10 +479,10 @@ void CRGB::SetParity(uint8_t parity)
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void fill_solid( struct CRGB * targetArray, int numToFill,
+void fill_solid(struct CRGB * targetArray, int numToFill,
                  const struct CRGB& color)
 {
-    for( int i = 0; i < numToFill; ++i) {
+    for(int i = 0; i < numToFill; ++i) {
         targetArray[i] = color;
     }
 }
@@ -358,6 +499,86 @@ void fill_rainbow(struct CRGB * targetArray, int numToFill,
         targetArray[i] = pixel;
         pixel.h += deltahue;
     }
+}
+
+
+CRGB ColorFromPalette(const CRGBPalette16& pal, 
+                      uint8_t index, uint8_t brightness, 
+                      TBlendType blendType)
+{
+    if (blendType == LINEARBLEND_NOWRAP) {
+        index = map8(index, 0, 239);  // Blend range is affected by lo4 blend 
+                                      // of values, remap to avoid wrapping.
+    }
+
+    // hi4 = index >> 4;
+    uint8_t hi4 = lsrX4(index);
+    uint8_t lo4 = index & 0x0F;
+    
+    // const CRGB* entry = &(pal[0]) + hi4;
+    // since hi4 is always 0..15, hi4 * sizeof(CRGB) can be a single-byte value,
+    // instead of the two byte 'int' that avr-gcc defaults to.
+    // So, we multiply hi4 X sizeof(CRGB), giving hi4XsizeofCRGB;
+    uint8_t hi4XsizeofCRGB = hi4 * sizeof(CRGB);
+    // We then add that to a base array pointer.
+    const CRGB* entry = (CRGB*)((uint8_t*)(&(pal[0])) + hi4XsizeofCRGB);
+    
+    uint8_t blend = lo4 && (blendType != NOBLEND);
+    
+    uint8_t red1   = entry->r;
+    uint8_t green1 = entry->g;
+    uint8_t blue1  = entry->b;
+       
+    if(blend) { 
+        if(hi4 == 15) { entry = &(pal[0]); } 
+        else { ++entry; }
+
+        uint8_t f2 = lo4 << 4;
+        uint8_t f1 = 255 - f2;
+        
+        // rgb1.nscale8(f1);
+        uint8_t red2 = entry->r;
+        red1 = scale8(red1, f1);
+        red2 = scale8(red2, f2);
+        red1 += red2;
+
+        uint8_t green2 = entry->g;
+        green1 = scale8(green1, f1);
+        green2 = scale8(green2, f2);
+        green1 += green2;
+
+        uint8_t blue2 = entry->b;
+        blue1 = scale8(blue1,  f1);
+        blue2 = scale8(blue2,  f2);
+        blue1 += blue2;
+    }
+    
+    if(brightness != 255) {
+        if(brightness) {
+            ++brightness; // Adjust for rounding.
+            // Now, since brightness is nonzero, 
+            // we don't need the full scale8_video logic;
+            // we can just to scale8 and then add one 
+            // (unless scale8 fixed) to all nonzero inputs.
+            if(red1) {
+                red1 = scale8(red1, brightness);
+                ++red1;
+            }
+            if(green1) {
+                green1 = scale8(green1, brightness);
+                ++green1;
+            }
+            if(blue1) {
+                blue1 = scale8(blue1, brightness);
+                ++blue1;
+            }
+        } else {
+            red1 = 0;
+            green1 = 0;
+            blue1 = 0;
+        }
+    }
+    return CRGB(red1, green1, blue1);
 }
 
 

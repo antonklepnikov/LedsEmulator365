@@ -38,10 +38,10 @@ enum {
 ////////////////////////////////////////////////////////////////////////////////
 
 enum enum_mode {
-  mode_null = -1, mode_stop,
-  mode_1, mode_2, mode_3,
-  mode_4, mode_5, mode_6,
-  mode_7, mode_8, mode_9
+  mode_null = -1, mode_stop = 0,
+  mode_1 = 1, mode_2 = 2, mode_3 = 3,
+  mode_4 = 4, mode_5 = 5, mode_6 = 6,
+  mode_7 = 7, mode_8 = 8, mode_9 = 9
 };
 
 struct RGBLed {
