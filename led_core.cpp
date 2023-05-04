@@ -188,7 +188,7 @@ void ModeRainbowMeteor::IntLoop()
 void ModeRainbowGlitter::AddGlitter(int chance)
 {
 	if(prandom_range(100) <= chance) {
-	    (*core)[prandom_range(NUM_LEDS)] += CRGB::White;
+	    (*core)[prandom_range(NUM_LEDS) - 1] += CRGB::White;
 	}
 }
 
