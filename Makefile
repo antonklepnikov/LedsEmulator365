@@ -21,7 +21,7 @@ process_exception.o: process_exception.cpp ./h/process_exception.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 
-le365: main.cpp fastled_port.o led_core.o led_gui.o process_exception.o selector.o ./h/led_gui.h ./h/led_core.h ./h/process_exception.h
+build: main.cpp fastled_port.o led_core.o led_gui.o process_exception.o selector.o ./h/led_gui.h ./h/led_core.h ./h/process_exception.h
 	$(CXX) $(CXXFLAGS) main.cpp fastled_port.o led_core.o led_gui.o process_exception.o selector.o -o le365 -lfltk
 
 
