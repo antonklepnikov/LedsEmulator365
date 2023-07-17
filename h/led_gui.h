@@ -17,6 +17,8 @@
 #include "selector.h"
 
 #include <FL/Fl.H>
+#include <FL/platform.H>
+#include <X11/Xlib.h>
 
                                     
 ////////////////////////////////////////////////////////////////////////////////
@@ -109,7 +111,7 @@ private:
     Window365(int w, int h) :
         OOFLWindow(0, 0, w, h, "< LEDs emulator 365 >") {}
 public:
-    static Window365 * Make(LEDCore *core, Selector *sel); // led_gui.cpp
+    static Window365 * Make(Display *disp, LEDCore *core, Selector *sel); // led_gui.cpp
 };
 
 

@@ -37,8 +37,10 @@ void BrightDownButton::OnPress()
 }
 
 
-Window365 * Window365::Make(LEDCore *core, Selector *sel)
+Window365 * Window365::Make(Display *disp, LEDCore *core, Selector *sel)
 {
+    fl_open_display(disp);
+    
     static const char* buttons_lbl[] = { "1", "2", "3", "4", "5",
                                          "6", "7", "8", "9" };
     int x, y, i, j, vi, k, ivi;
