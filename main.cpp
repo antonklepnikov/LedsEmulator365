@@ -9,9 +9,9 @@
 /// HEADERS ////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-#include <X11/Xlib.h>
 #include <iostream>
 
+#include <X11/Xlib.h>
 #include "led_gui.h"
 #include "led_core.h"
 #include "process_exception.h"
@@ -30,11 +30,12 @@ int main(int argc, char *argv[])
     Display *ds { nullptr };
     ds = XOpenDisplay(0);
     if(!ds) { 
-    	std::cout << "Can't open display!" << std::endl;
+    	std::cerr << "Can't open display!" << std::endl;
     	std::exit(1); 
     }
-    // int fd { ConnectionNumber(ds) };
-    
+
+    int dsFd { ConnectionNumber(ds) };
+std::cerr << "Display fd = " << dsFd << std::endl;    
     
     ////////////////////////////////////////////////////////////////////////////
     
@@ -48,6 +49,7 @@ int main(int argc, char *argv[])
         eptr = std::current_exception();
         return process_exception(eptr);
     }
+std::cerr << "Return 0, bye" << std::endl; 
     return 0;
 }
 

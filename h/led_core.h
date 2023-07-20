@@ -38,6 +38,7 @@ private:
     enum_mode currentMode{ mode_null };
     enum_mode savedMode{ mode_null };
     bool stopped{ false };
+    bool core_quit_flag{ false };
 public:
 	// Initializing the pseudo-random number generator in the constructor:
     LEDCore() : core_timer{}, leds{}, fstleds{} { 
@@ -65,6 +66,8 @@ public:
     void Clear();
     void Waits(double sec);
     void Fill(int r, int g, int b);
+    
+    bool CoreRun() const { return !core_quit_flag; }
 };
 
 

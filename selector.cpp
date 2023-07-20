@@ -75,9 +75,9 @@ void Selector::Run()
 {
     Timer tm;
     auto thc{ true };
-    while(true) {
+    while(!quit_flag && core->CoreRun()) {
         if(thc) {
-            if(!Fl::check()) { std::exit(0); }
+            if(!Fl::check()) { BreakLoop(); }
             Select();
             tm.Reset();
             thc = false;

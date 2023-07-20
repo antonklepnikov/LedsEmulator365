@@ -31,7 +31,7 @@ void LEDCore::PrevMode()
 { 
     if(currentMode != mode_null) { 
         int current = (static_cast<int>(currentMode));
-        if(current <= k_min_num_mode) { 
+        if(current <= k_min_num_mode) {
             currentMode = static_cast<enum_mode>(k_max_num_mode);
         } else {     
             currentMode = static_cast<enum_mode>(current - 1);
@@ -99,7 +99,7 @@ void LEDCore::Waits(double sec)
     Timer t;
     while(true) {
         if(t.Elapsed() >= sec) { return; }
-        if(!Fl::check()) { std::exit(0); }
+        if(!Fl::check()) { core_quit_flag = true; }
     }
 }
 
@@ -141,7 +141,7 @@ void ModeStop::IntLoop()
 void ModeRainbow::IntLoop()
 {
     int shue{};
-    while(core->GetMode() == curr) {
+    while(core->GetMode() == curr && core->CoreRun()) {
         fill_rainbow(core->GetFstleds(), NUM_LEDS, shue, 20);
         core->Show();
         core->Waits(0.01);
@@ -162,7 +162,7 @@ void ModeRainbowMeteor::IntLoop()
 {
     int hue{ 150 };
     core->Clear();
-    while(core->GetMode() == curr) {
+    while(core->GetMode() == curr && core->CoreRun()) {
         for(int i = 0; i < NUM_LEDS; ++i) {
             ++hue;
             if(hue > 255) { hue = 0; }
@@ -195,7 +195,7 @@ void ModeRainbowGlitter::AddGlitter(int chance)
 void ModeRainbowGlitter::IntLoop()
 {
     int shue{ 0 };
-    while(core->GetMode() == curr) {
+    while(core->GetMode() == curr && core->CoreRun()) {
         fill_rainbow(core->GetFstleds(), NUM_LEDS, shue, 5);
         AddGlitter(30);
         AddGlitter(50);
@@ -221,7 +221,7 @@ void ModeStars::IntLoop()
 		}
 	}
 	// Random stars:
-	while(core->GetMode() == curr) {
+	while(core->GetMode() == curr && core->CoreRun()) {
 		random_led = static_cast<size_t>(prandom_range(NUM_LEDS) - 1);
 		if(barr.at(random_led)) { continue; }
 		barr.at(random_led) = true;
@@ -232,7 +232,7 @@ void ModeStars::IntLoop()
 		if(star_count >= NUM_LEDS) { break; }
 	}
 	// Random base:
-	while(core->GetMode() == curr) {
+	while(core->GetMode() == curr && core->CoreRun()) {
 		random_led = static_cast<size_t>(prandom_range(NUM_LEDS) - 1);
 		if(!barr.at(random_led)) { continue; }
 		barr.at(random_led) = false;
@@ -249,7 +249,7 @@ void ModeRunningDots::IntLoop()
 {
     size_t max_shift = carr.size();
     size_t shift = max_shift;
-    while(core->GetMode() == curr) {
+    while(core->GetMode() == curr && core->CoreRun()) {
         fill_in_turn(core, carr, shift);
         core->Show();
         core->Waits(k_delay);
