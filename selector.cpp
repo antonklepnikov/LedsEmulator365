@@ -13,6 +13,72 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 
+void FdSelector::Add(FdHandler *fdh)
+{
+	int i{};
+	int fd = fdh->GetFd();
+	if(!fdArray) {
+		fdArrayLen = fd > 15 ? fd + 1 : 16;
+		fdArray = new FdHandler*[fdArrayLen];
+		for(i = 0; i < fdArrayLen; ++i) { fdArray[i] = nullptr; }
+	}
+	if(fdArrayLen <= fd) {
+		int newLen = fd + 1;
+		FdHandler **tmpArr = new FdHandler*[newLen];
+		for(i = 0; i <= fd; ++i) { tmpArr[i] = i < fdArrayLen ? fdArray[i] : 0; }
+		fdArrayLen = newLen;
+		delete[] fdArray;
+		fdArray = tmpArr;
+	}
+	if(fd > maxFd) { maxFd = fd; }
+	fdArray[fd] = fdh;
+}
+
+bool FdSelector::Remove(FdHandler *fdh)
+{
+	int fd{ fdh->GetFd() };
+	if(fd >= fdArrayLen || fdArray[fd] != fdh) { return false; }
+	fdArray[fd] = nullptr;
+	if(fd == maxFd) { while(maxFd >= 0 && !fdArray[maxFd]) { -- maxFd; } }
+	return true;
+}
+
+void FdSelector::FdSelRun()
+{
+	while(!quitFlag) {
+		int i{};
+		fd_set rds;
+	    fd_set wrs;
+		FD_ZERO(&rds);
+	    FD_ZERO(&wrs);
+		timeval to;
+	    to.tv_sec = 0;
+	    to.tv_usec = 10000;
+		for(i = 0; i <= maxFd; ++i) {
+			if(fdArray[i]) {
+				if(fdArray[i]->WantRead()) { FD_SET(i, &rds); }
+				if(fdArray[i]->WantWrite()) { FD_SET(i, &wrs); }
+			}
+		}
+		int res = select(maxFd + 1, &rds, &wrs, 0, &to);
+		if(res < 0) {
+			if(errno == EINTR) { continue; }
+			else { break; }
+		}
+		if(res > 0) {
+			for(i = 0; i <= maxFd; ++i) {
+				if(!fdArray[i]) { continue; }
+				bool r = FD_ISSET(i, &rds);
+				bool w = FD_ISSET(i, &wrs);
+				if(r || w) { fdArray[i]->Handle(r, w); }
+			}
+		}
+	}
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+
 void Selector::Select()
 {
     auto mode{ core->GetMode() };

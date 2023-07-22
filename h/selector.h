@@ -13,10 +13,11 @@
 #include "common.h"
 #include "led_core.h"
 #include "oofl.h"
-
 #include <array>
 
 #include <unistd.h>
+#include <sys/select.h>
+#include <errno.h>
 
 
 /// TCP-SERVER PART (temporary) ////////////////////////////////////////////////
@@ -34,9 +35,22 @@ public:
 	virtual bool WantWrite() const { return false; }
 };
 
-class FdSelector {
+class FdSelector { // STD::VECTOR?!
 private:
+	FdHandler **fdArray;
+	int fdArrayLen;
+	int maxFd;
+	bool quitFlag;
 public:
+	FdSelector() : fdArray(0), fdArrayLen(0), maxFd(-1), quitFlag(false) {}
+	~FdSelector() { if(fdArray) delete[] fdArray; }
+	void Add(FdHandler *fdh);
+	bool Remove(FdHandler *fdh);
+	void BreakLoop() { quitFlag = true; }
+	void FdSelRun();
+    // No copying and assignment:
+    FdSelector(const FdSelector&) = delete;
+    FdSelector& operator=(const FdSelector&) = delete;	
 };
 
 
@@ -71,6 +85,7 @@ public:
     // No copying and assignment:
     Selector(const Selector&) = delete;
     Selector& operator=(const Selector&) = delete;
+    
 	void BreakLoop() { quit_flag = true; }
     void Run();
 };
