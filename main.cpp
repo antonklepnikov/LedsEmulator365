@@ -41,7 +41,7 @@ std::cerr << "Display fd = " << dsFd << std::endl;
     
     try {
         LEDCore core;
-        Selector selector(&core);
+        MainSelector selector(&core);
         auto *window{ Window365::Make(ds, &core, &selector) };
         window->show(argc, argv);
         selector.Run();

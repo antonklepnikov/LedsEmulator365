@@ -8,6 +8,13 @@
 
 enum {
 
+	SELECT_DELAY_SEC = 0,
+    SELECT_DELAY_USEC = 150000,
+    
+    TCP_LINE_MAX_LENGTH = 1023,
+    TCP_QLEN_FOR_LISTEN = 16,
+	TCP_LISTEN_PORT = 7777,
+    
     ////////////////////////////////////// Don't change it! ////
     NUM_DIG_BUTTONS = 9,
     NUM_ALL_BUTTONS = 14,

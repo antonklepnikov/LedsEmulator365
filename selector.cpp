@@ -12,6 +12,7 @@
 
 
 ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 void FdSelector::Add(FdHandler *fdh)
 {
@@ -43,43 +44,93 @@ bool FdSelector::Remove(FdHandler *fdh)
 	return true;
 }
 
-void FdSelector::FdSelRun()
+void FdSelector::FdSelect()
 {
-	while(!quitFlag) {
-		int i{};
-		fd_set rds;
-	    fd_set wrs;
-		FD_ZERO(&rds);
-	    FD_ZERO(&wrs);
-		timeval to;
-	    to.tv_sec = 0;
-	    to.tv_usec = 10000;
+	int i{};
+	fd_set rds;
+    fd_set wrs;
+	FD_ZERO(&rds);
+    FD_ZERO(&wrs);
+	timeval to;
+    to.tv_sec = SELECT_DELAY_SEC;
+    to.tv_usec = SELECT_DELAY_USEC;
+	for(i = 0; i <= maxFd; ++i) {
+		if(fdArray[i]) {
+			if(fdArray[i]->WantRead()) { FD_SET(i, &rds); }
+			if(fdArray[i]->WantWrite()) { FD_SET(i, &wrs); }
+		}
+	}
+	int res = select(maxFd + 1, &rds, &wrs, 0, &to);
+	if(res < 0 && errno != EINTR) { noErr = false; }
+	else if(res > 0) {
 		for(i = 0; i <= maxFd; ++i) {
-			if(fdArray[i]) {
-				if(fdArray[i]->WantRead()) { FD_SET(i, &rds); }
-				if(fdArray[i]->WantWrite()) { FD_SET(i, &wrs); }
-			}
-		}
-		int res = select(maxFd + 1, &rds, &wrs, 0, &to);
-		if(res < 0) {
-			if(errno == EINTR) { continue; }
-			else { break; }
-		}
-		if(res > 0) {
-			for(i = 0; i <= maxFd; ++i) {
-				if(!fdArray[i]) { continue; }
-				bool r = FD_ISSET(i, &rds);
-				bool w = FD_ISSET(i, &wrs);
-				if(r || w) { fdArray[i]->Handle(r, w); }
-			}
+			if(!fdArray[i]) { continue; }
+			bool r = FD_ISSET(i, &rds);
+			bool w = FD_ISSET(i, &wrs);
+			if(r || w) { fdArray[i]->Handle(r, w); }
 		}
 	}
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+FdServer* FdServer::Start(FdSelector *fsl, LEDCore *cp, int port)
+{
+	int ls{ socket(AF_INET, SOCK_STREAM, 0) };
+	if(ls == -1) { return 0; }
+	int opt { 1 };
+	setsockopt(ls, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+	sockaddr_in addr{};
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	addr.sin_port = htons(port);
+	int res{ bind(ls, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) };
+	if(res == -1) { return 0; }
+	res = listen(ls, TCP_QLEN_FOR_LISTEN);
+	if(res == -1) { return 0; }
+	return new FdServer(fsl, cp, ls);
+}
+
+FdServer::FdServer(FdSelector *fsl, LEDCore *cp, int fd) 
+	: FdHandler(fd, true), fdsel(fsl), core(cp) { fdsel->Add(this); }
+
+FdServer::~FdServer() { fdsel->Remove(this); }
+
+void FdServer::Handle(bool r, [[maybe_unused]] bool w) // LOGGING?!
+                                                       // DELETE TCPSESSION?!
+{
+	if(!r) { return; }
+	sockaddr_in addr{};
+	socklen_t len{ sizeof(addr) };
+	int sd{ accept(GetFd(), reinterpret_cast<sockaddr*>(&addr), &len) };
+	if(sd == -1) { return; }
+	TcpSession *p = new TcpSession(this, sd);
+	fdsel->Add(p);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void Selector::Select()
+void TcpSession::Say(const char *msg)
+{
+	write(GetFd(), msg, strlen(msg));
+}
+
+TcpSession::TcpSession(FdServer *am, int fd) 
+	: FdHandler(fd, true), bufUsed(0), ignoring(false), name(nullptr), 
+	srvMaster(am) 
+{ 
+	Say("Enter you name: "); 
+}
+
+TcpSession::~TcpSession() 
+{
+	if(name) { delete[] name; }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+void MainSelector::ModeChooser()
 {
     auto mode{ core->GetMode() };
     switch(mode) {
@@ -137,18 +188,13 @@ void Selector::Select()
     }
 }
 
-void Selector::Run()
-{
-    Timer tm;
-    auto thc{ true };
+void MainSelector::Run()
+{   
     while(!quit_flag && core->CoreRun()) {
-        if(thc) {
-            if(!Fl::check()) { BreakLoop(); }
-            Select();
-            tm.Reset();
-            thc = false;
-        }
-        if(tm.Elapsed() >= 0.15) { thc = true; }
+    	if(!Fl::check()) { BreakLoop(); }
+        if(!fdsel.FdSelReady()) { BreakLoop(); }
+    	fdsel.FdSelect();
+        ModeChooser();
     }
 }
 

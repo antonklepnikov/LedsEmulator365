@@ -37,7 +37,7 @@ void BrightDownButton::OnPress()
 }
 
 
-Window365 * Window365::Make(Display *disp, LEDCore *core, Selector *sel)
+Window365 * Window365::Make(Display *disp, LEDCore *core, MainSelector *sel)
 {
     fl_open_display(disp);
     
