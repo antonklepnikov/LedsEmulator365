@@ -77,14 +77,14 @@ class BrightUpButton : public Pult {
 public:
     BrightUpButton(int x, int y, const char *lb, LEDCore *c)
         : Pult(x, y, lb, c) { labelsize(FONT_SIZE_CONTROL_BUTTON); }
-    virtual void OnPress(); // led_gui.cpp
+    virtual void OnPress() { core->BrightUp(); }
 };
 
 class BrightDownButton : public Pult {
 public:
     BrightDownButton(int x, int y, const char *lb, LEDCore *c)
         : Pult(x, y, lb, c) { labelsize(FONT_SIZE_CONTROL_BUTTON); }
-    virtual void OnPress(); // led_gui.cpp
+    virtual void OnPress() { core->BrightDown(); }
 };
 
 

@@ -15,6 +15,22 @@
 /// LEDCore ////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+void LEDCore::BrightUp()
+{
+    int b{ GetBright() };
+    b += STEP_BRIGHT;
+    if(b > MAX_BRIGHT) { SetBright(MAX_BRIGHT); } 
+    else { SetBright(b); }
+}
+
+void LEDCore::BrightDown()
+{
+    int b{ GetBright() };
+    b -= STEP_BRIGHT;
+    if(b < MIN_BRIGHT) { SetBright(MIN_BRIGHT); } 
+    else { SetBright(b); }
+}
+
 void LEDCore::StopMode() 
 {
     if(stopped) {

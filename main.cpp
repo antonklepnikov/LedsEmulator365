@@ -40,15 +40,29 @@ std::cerr << "Display fd = " << dsFd << std::endl;
     ////////////////////////////////////////////////////////////////////////////
     
     try {
-        LEDCore core;
-        MainSelector selector(&core);
-        auto *window{ Window365::Make(ds, &core, &selector) };
+        auto core { new LEDCore };
+        auto fdsel{ new FdSelector };
+         
+        auto server{ FdServer::Start(dsFd, fdsel, core, TCP_LISTEN_PORT) };
+if(!server) { // ERROR HANDLING, WORKING WITHOUT SERVER!!!???
+	std::cerr << "Error of starting TCP-server, std::exit(1)" << std::endl;
+	std::exit(1);
+} else {
+	std::cerr << "TCP-server running on port " << TCP_LISTEN_PORT << std::endl; 
+}
+
+		auto selector { new MainSelector(server, core) };
+        auto window{ Window365::Make(ds, core, selector) };
+      
         window->show(argc, argv);
-        selector.Run();
+Fl::check();
+        selector->Run();
+        
     } catch(...) {
         eptr = std::current_exception();
         return process_exception(eptr);
     }
+        
 std::cerr << "Return 0, bye" << std::endl; 
     return 0;
 }

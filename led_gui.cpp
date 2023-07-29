@@ -13,30 +13,6 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void BrightUpButton::OnPress()
-{
-    auto b{ core->GetBright() };
-    b += STEP_BRIGHT;
-    if(b > MAX_BRIGHT) {
-        core->SetBright(MAX_BRIGHT);
-    } else {
-        core->SetBright(b);
-    }
-}
-
-
-void BrightDownButton::OnPress()
-{
-    auto b{ core->GetBright() };
-    b -= STEP_BRIGHT;
-    if(b < MIN_BRIGHT) {
-        core->SetBright(MIN_BRIGHT);
-    } else {
-        core->SetBright(b);
-    }
-}
-
-
 Window365 * Window365::Make(Display *disp, LEDCore *core, MainSelector *sel)
 {
     fl_open_display(disp);

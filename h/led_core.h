@@ -57,6 +57,8 @@ public:
     uint32_t GetMillis() const { return core_timer.Elapsed() * 1000;  }
  
     void SetBright(int b) { bright = b; }
+    void BrightUp();
+    void BrightDown();
     void SetMode(enum_mode m) { currentMode = m; }
     void StopMode();
     void PrevMode();

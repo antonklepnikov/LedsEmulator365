@@ -88,23 +88,43 @@ private:
 class DisplaySession : private FdHandler {
 friend class FdServer;
 private:
-	DisplaySession(FdServer *argSrvMaster, int fd);
-	virtual ~DisplaySession();
+	DisplaySession(int fd) : FdHandler(fd, false) {}
+	virtual ~DisplaySession() {}
 	virtual void Handle(bool r, bool w);
 };
 
+class CorePultInterface {
+private:
+	LEDCore *core;
+public:
+	CorePultInterface(LEDCore *cp) : core(cp) {}
+	
+	void Mode(enum_mode m) 	{	core->SetMode(m);	}
+	void Ok()				{	core->StopMode();	}
+	void Up() 				{	core->BrightUp();	}
+	void Down()				{	core->BrightDown();	}
+	void Left() 			{	core->PrevMode();	}
+	void Right() 			{	core->NextMode();	}
+	
+	// No copying and assignment:
+    CorePultInterface(const CorePultInterface&) = delete;
+    CorePultInterface& operator=(const CorePultInterface&) = delete;
+};
 
 class FdServer : public FdHandler {
 private:
+	DisplaySession disp;
 	FdSelector *fdsel;
-	LEDCore *core;
-	FdServer(FdSelector *aFds, LEDCore *cp, int fd);
+	CorePultInterface cpi;
+	FdServer(int fdDisp, FdSelector *aFds, LEDCore *cp, int fdSrv);
 public:
-	static FdServer* Start(FdSelector *fsl, LEDCore *cp, int port);
+	static FdServer* Start(int display, FdSelector *fsl, LEDCore *cp, int port);
 	
 	virtual ~FdServer();
 	virtual void Handle(bool r, bool w);
 	void RemoveTcpSession(TcpSession *s) { fdsel->Remove(s); }
+	
+	void ServerStep() { fdsel->FdSelect(); }
 
 	// No copying and assignment:
     FdServer(const FdServer&) = delete;
@@ -119,7 +139,9 @@ public:
 class MainSelector {
     friend class Window365;
 private:
-    FdSelector fdsel; 
+    // FdSelector fdsel;
+    FdServer *tcps;
+    
     bool quit_flag;
     
     LEDCore *core;
@@ -139,7 +161,9 @@ private:
     void ModeChooser();
 
 public:
-    MainSelector(LEDCore *c) : fdsel{}, quit_flag(false), core(c), buttons{} {}
+    //MainSelector(LEDCore *c) : fdsel{}, quit_flag(false), core(c), buttons{} {}
+    MainSelector(FdServer *s, LEDCore *c) 
+    	: tcps(s), quit_flag(false), core(c), buttons{} {}
 
     // No copying and assignment:
     MainSelector(const MainSelector&) = delete;

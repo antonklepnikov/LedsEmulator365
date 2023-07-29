@@ -74,7 +74,7 @@ void FdSelector::FdSelect()
 
 ////////////////////////////////////////////////////////////////////////////////
 
-FdServer* FdServer::Start(FdSelector *fsl, LEDCore *cp, int port)
+FdServer* FdServer::Start(int display, FdSelector *fsl, LEDCore *cp, int port)
 {
 	int ls{ socket(AF_INET, SOCK_STREAM, 0) };
 	if(ls == -1) { return 0; }
@@ -88,11 +88,15 @@ FdServer* FdServer::Start(FdSelector *fsl, LEDCore *cp, int port)
 	if(res == -1) { return 0; }
 	res = listen(ls, TCP_QLEN_FOR_LISTEN);
 	if(res == -1) { return 0; }
-	return new FdServer(fsl, cp, ls);
+	return new FdServer(display, fsl, cp, ls);
 }
 
-FdServer::FdServer(FdSelector *fsl, LEDCore *cp, int fd) 
-	: FdHandler(fd, true), fdsel(fsl), core(cp) { fdsel->Add(this); }
+FdServer::FdServer(int fdDisp, FdSelector *fsl, LEDCore *cp, int fdSrv) 
+	: FdHandler(fdSrv, true), disp(fdDisp), fdsel(fsl), cpi(cp)
+{ 
+	fdsel->Add(&disp);
+	fdsel->Add(this);	
+}
 
 FdServer::~FdServer() { fdsel->Remove(this); }
 
@@ -119,12 +123,25 @@ TcpSession::TcpSession(FdServer *am, int fd)
 	: FdHandler(fd, true), bufUsed(0), ignoring(false), name(nullptr), 
 	srvMaster(am) 
 { 
-	Say("Enter you name: "); 
+	Say("You are connected to LEDCore, input command here: "); 
 }
 
 TcpSession::~TcpSession() 
 {
 	if(name) { delete[] name; }
+}
+
+void TcpSession::Handle([[maybe_unused]] bool r, [[maybe_unused]] bool w)
+{
+	Say("This is the temporary loopback for LEDCore interface. ");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+void DisplaySession::Handle(bool r, [[maybe_unused]] bool w)
+{
+	if(!r) { return; }
+	if(!Fl::check()) { std::exit(0); } //FLAG!!!
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -191,9 +208,12 @@ void MainSelector::ModeChooser()
 void MainSelector::Run()
 {   
     while(!quit_flag && core->CoreRun()) {
-    	if(!Fl::check()) { BreakLoop(); }
-        if(!fdsel.FdSelReady()) { BreakLoop(); }
-    	fdsel.FdSelect();
+    	
+    	//if(!Fl::check()) { BreakLoop(); }
+        //if(!fdsel.FdSelReady()) { BreakLoop(); }
+    	//fdsel.FdSelect();
+        
+        tcps->ServerStep();
         ModeChooser();
     }
 }
