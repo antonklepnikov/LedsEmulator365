@@ -88,7 +88,9 @@ private:
 class DisplaySession : private FdHandler {
 friend class FdServer;
 private:
-	DisplaySession(int fd) : FdHandler(fd, false) {}
+	bool windowClosed;
+	
+	DisplaySession(int fd) : FdHandler(fd, false), windowClosed(false) {}
 	virtual ~DisplaySession() {}
 	virtual void Handle(bool r, bool w);
 };
@@ -116,6 +118,7 @@ private:
 	DisplaySession disp;
 	FdSelector *fdsel;
 	CorePultInterface cpi;
+	bool serverStop;
 	FdServer(int fdDisp, FdSelector *aFds, LEDCore *cp, int fdSrv);
 public:
 	static FdServer* Start(int display, FdSelector *fsl, LEDCore *cp, int port);
@@ -125,6 +128,9 @@ public:
 	void RemoveTcpSession(TcpSession *s) { fdsel->Remove(s); }
 	
 	void ServerStep() { fdsel->FdSelect(); }
+	bool ServerReady() const { return (!disp.windowClosed && 
+	                                   !serverStop &&
+	                                   fdsel->FdSelReady()); }
 
 	// No copying and assignment:
     FdServer(const FdServer&) = delete;
@@ -139,12 +145,9 @@ public:
 class MainSelector {
     friend class Window365;
 private:
-    // FdSelector fdsel;
     FdServer *tcps;
-    
-    bool quit_flag;
-    
     LEDCore *core;
+    
     std::array<OOFLButton*, NUM_ALL_BUTTONS> buttons;
     
     ModeRainbow 			rainbow{};									   // 1
@@ -158,18 +161,16 @@ private:
     ModeWhite               white{};                                       // 9  
     ModeStop 				stop{};                                        // O
 
-    void ModeChooser();
+    void MainLoopStep();
 
 public:
-    //MainSelector(LEDCore *c) : fdsel{}, quit_flag(false), core(c), buttons{} {}
     MainSelector(FdServer *s, LEDCore *c) 
-    	: tcps(s), quit_flag(false), core(c), buttons{} {}
+    	: tcps(s), core(c), buttons{} {}
 
     // No copying and assignment:
     MainSelector(const MainSelector&) = delete;
     MainSelector& operator=(const MainSelector&) = delete;
     
-	void BreakLoop() { quit_flag = true; }
     void Run();
 };
 

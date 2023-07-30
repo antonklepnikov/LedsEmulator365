@@ -27,14 +27,13 @@ int main(int argc, char *argv[])
     
     ////////////////////////////////////////////////////////////////////////////
     
-    Display *ds { nullptr };
-    ds = XOpenDisplay(0);
-    if(!ds) { 
-    	std::cerr << "Can't open display!" << std::endl;
-    	std::exit(1); 
-    }
-
-    int dsFd { ConnectionNumber(ds) };
+    auto ds { XOpenDisplay(0) };
+if(!ds) { // ERROR HANDLING
+ 	std::cerr << "Can't open display!" << std::endl;
+   	std::exit(1); 
+}
+	fl_open_display(ds);
+    auto dsFd { ConnectionNumber(ds) };
 std::cerr << "Display fd = " << dsFd << std::endl;    
     
     ////////////////////////////////////////////////////////////////////////////
@@ -52,10 +51,9 @@ if(!server) { // ERROR HANDLING, WORKING WITHOUT SERVER!!!???
 }
 
 		auto selector { new MainSelector(server, core) };
-        auto window{ Window365::Make(ds, core, selector) };
+        auto window{ Window365::Make(core, selector) };
       
         window->show(argc, argv);
-Fl::check();
         selector->Run();
         
     } catch(...) {

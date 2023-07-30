@@ -92,7 +92,8 @@ FdServer* FdServer::Start(int display, FdSelector *fsl, LEDCore *cp, int port)
 }
 
 FdServer::FdServer(int fdDisp, FdSelector *fsl, LEDCore *cp, int fdSrv) 
-	: FdHandler(fdSrv, true), disp(fdDisp), fdsel(fsl), cpi(cp)
+	: FdHandler(fdSrv, true), disp(fdDisp),
+	fdsel(fsl), cpi(cp), serverStop(false)
 { 
 	fdsel->Add(&disp);
 	fdsel->Add(this);	
@@ -141,13 +142,13 @@ void TcpSession::Handle([[maybe_unused]] bool r, [[maybe_unused]] bool w)
 void DisplaySession::Handle(bool r, [[maybe_unused]] bool w)
 {
 	if(!r) { return; }
-	if(!Fl::check()) { std::exit(0); } //FLAG!!!
+	if(!Fl::check()) { windowClosed = true; }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void MainSelector::ModeChooser()
+void MainSelector::MainLoopStep()
 {
     auto mode{ core->GetMode() };
     switch(mode) {
@@ -207,14 +208,10 @@ void MainSelector::ModeChooser()
 
 void MainSelector::Run()
 {   
-    while(!quit_flag && core->CoreRun()) {
-    	
-    	//if(!Fl::check()) { BreakLoop(); }
-        //if(!fdsel.FdSelReady()) { BreakLoop(); }
-    	//fdsel.FdSelect();
-        
+    Fl::check();
+    while(core->CoreRun() && tcps->ServerReady()) {
         tcps->ServerStep();
-        ModeChooser();
+        MainLoopStep();
     }
 }
 

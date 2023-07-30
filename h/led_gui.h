@@ -111,7 +111,7 @@ private:
     Window365(int w, int h) :
         OOFLWindow(0, 0, w, h, "< LEDs emulator 365 >") {}
 public:
-    static Window365 * Make(Display *disp, LEDCore *core, MainSelector *sel); // led_gui.cpp
+    static Window365 * Make(LEDCore *core, MainSelector *sel); // led_gui.cpp
 };
 
 
