@@ -92,14 +92,18 @@ FdServer* FdServer::Start(int display, FdSelector *fsl, LEDCore *cp, int port)
 }
 
 FdServer::FdServer(int fdDisp, FdSelector *fsl, LEDCore *cp, int fdSrv) 
-	: FdHandler(fdSrv, true), disp(fdDisp),
-	fdsel(fsl), cpi(cp), serverStop(false)
+	: FdHandler(fdSrv, true), disp(fdDisp), fdsel(fsl), 
+	  cpi(cp), serverStop(false)
 { 
 	fdsel->Add(&disp);
 	fdsel->Add(this);	
 }
 
-FdServer::~FdServer() { fdsel->Remove(this); }
+FdServer::~FdServer()
+{ 
+	fdsel->Remove(this);
+	close(GetFd());
+}
 
 void FdServer::Handle(bool r, [[maybe_unused]] bool w) // LOGGING?!
                                                        // DELETE TCPSESSION?!
@@ -113,6 +117,13 @@ void FdServer::Handle(bool r, [[maybe_unused]] bool w) // LOGGING?!
 	fdsel->Add(p);
 }
 
+void FdServer::RemoveTcpSession(TcpSession *s)
+{ 
+	fdsel->Remove(s); 
+	close(s->GetFd());
+	delete s;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void TcpSession::Say(const char *msg)
@@ -121,21 +132,149 @@ void TcpSession::Say(const char *msg)
 }
 
 TcpSession::TcpSession(FdServer *am, int fd) 
-	: FdHandler(fd, true), bufUsed(0), ignoring(false), name(nullptr), 
-	srvMaster(am) 
+	: FdHandler(fd, true), bufUsed(0), ignoring(false), srvMaster(am) 
 { 
-	Say("You are connected to LEDCore, input command here: "); 
+	Say(SERVER_WELCOME); 
 }
 
-TcpSession::~TcpSession() 
+void TcpSession::Handle(bool r, [[maybe_unused]] bool w)
 {
-	if(name) { delete[] name; }
+	if(!r) { return; }
+	if(bufUsed >= static_cast<int>(sizeof(buffer))) {
+		bufUsed = 0;
+		ignoring = true;
+	}
+	if(ignoring) { ReadAndIgnore(); }
+	else { ReadAndCheck(); }
 }
 
-void TcpSession::Handle([[maybe_unused]] bool r, [[maybe_unused]] bool w)
+void TcpSession::ReadAndIgnore()
 {
-	Say("This is the temporary loopback for LEDCore interface. ");
+	int r = read(GetFd(), buffer, sizeof(buffer));
+	if(r < 1) {
+		srvMaster->RemoveTcpSession(this);
+		return;
+	}
+	for(int i = 0; i < r; ++i) {
+		if(buffer[i] == '\n') { // Stop ignoring.
+			int rest{ r - i - 1 };
+			if(rest > 0) { 
+				memmove(buffer, buffer + i + 1, static_cast<size_t>(rest)); 
+			}
+			bufUsed = rest;
+			ignoring = false;
+			CheckLines();
+		}
+	}
 }
+
+void TcpSession::ReadAndCheck()
+{
+	int r = read(GetFd(), buffer + bufUsed, 
+	             sizeof(buffer) - static_cast<size_t>(bufUsed));
+	if(r < 1) {
+		srvMaster->RemoveTcpSession(this);
+		return;
+	}
+	bufUsed += r;
+	CheckLines();	
+}
+
+void TcpSession::CheckLines()
+{
+	if(bufUsed <= 0) { return; }
+	int i{};
+	for(i = 0; i < bufUsed; ++i) {
+		if(buffer[i] == '\n') {
+			buffer[i] = 0;
+			if(i > 0 && buffer[i-1] == '\r') { buffer[i-1] = 0; }
+			ProcessLine(buffer);
+			int rest{ bufUsed - 1 - i };
+			if(rest < 0) { return; }				// This check is need ???!!!
+			memmove(buffer, buffer + i + 1, static_cast<size_t>(rest));
+			bufUsed = rest;
+			CheckLines();
+			return;
+		}
+	}
+}
+
+void TcpSession::ProcessLine(const char *str)
+{
+	if(!strcmp(str, CLIENT_EXIT)) { 
+		ServerAnswer("Ok, bye"); 
+		srvMaster->RemoveTcpSession(this);
+	}
+	else if(!strcmp(str, CLIENT_MODE_1)) { 
+		ServerAnswer("Ok, mode_1"); 
+		srvMaster->GUI_Mode(mode_1);
+	}
+	else if(!strcmp(str, CLIENT_MODE_2)) { 
+		ServerAnswer("Ok, mode_2"); 
+		srvMaster->GUI_Mode(mode_2);
+	}
+	else if(!strcmp(str, CLIENT_MODE_3)) { 
+		ServerAnswer("Ok, mode_3"); 
+		srvMaster->GUI_Mode(mode_3);
+	}
+	else if(!strcmp(str, CLIENT_MODE_4)) { 
+		ServerAnswer("Ok, mode_4"); 
+		srvMaster->GUI_Mode(mode_4);
+	}
+	else if(!strcmp(str, CLIENT_MODE_5)) { 
+		ServerAnswer("Ok, mode_5"); 
+		srvMaster->GUI_Mode(mode_5);
+	}
+	else if(!strcmp(str, CLIENT_MODE_6)) { 
+		ServerAnswer("Ok, mode_6"); 
+		srvMaster->GUI_Mode(mode_6);
+	}
+	else if(!strcmp(str, CLIENT_MODE_7)) { 
+		ServerAnswer("Ok, mode_7"); 
+		srvMaster->GUI_Mode(mode_7);
+	}
+	else if(!strcmp(str, CLIENT_MODE_8)) { 
+		ServerAnswer("Ok, mode_8"); 
+		srvMaster->GUI_Mode(mode_8);
+	}
+	else if(!strcmp(str, CLIENT_MODE_9)) { 
+		ServerAnswer("Ok, mode_9"); 
+		srvMaster->GUI_Mode(mode_9);
+	}
+	else if(!strcmp(str, CLIENT_UP)) { 
+		ServerAnswer("Ok, up"); 
+		srvMaster->GUI_Up();
+	}
+	else if(!strcmp(str, CLIENT_DOWN)) { 
+		ServerAnswer("Ok, down"); 
+		srvMaster->GUI_Down();
+	}
+	else if(!strcmp(str, CLIENT_LEFT)) { 
+		ServerAnswer("Ok, left"); 
+		srvMaster->GUI_Left();
+	}
+	else if(!strcmp(str, CLIENT_RIGHT)) { 
+		ServerAnswer("Ok, right"); 
+		srvMaster->GUI_Right();
+	}
+	else if(!strcmp(str, CLIENT_OK)) { 
+		ServerAnswer("Ok, OK"); 
+		srvMaster->GUI_Ok();
+	}
+	else { ServerAnswer("Bad, command not found"); }
+}
+
+void TcpSession::ServerAnswer(const char *str)
+{
+	const char *srvStr{ SERVER_NEW_LINE };
+	int lenSrvStr{ static_cast<int>(strlen(srvStr)) };
+	int lenStr{ static_cast<int>(strlen(str)) };
+	char *msg = new char[lenStr + lenSrvStr];
+	sprintf(msg, "SRV: %s%s", str, srvStr);
+	Say(msg);
+	delete[] msg;
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
