@@ -92,9 +92,9 @@ FdServer* FdServer::Start(int display, FdSelector *fsl, LEDCore *cp, int port)
 }
 
 FdServer::FdServer(int fdDisp, FdSelector *fsl, LEDCore *cp, int fdSrv) 
-	: FdHandler(fdSrv, true), disp(fdDisp), fdsel(fsl), 
-	  cpi(cp), serverStop(false)
+	: FdHandler(fdSrv, true), disp(fdDisp), fdsel(fsl), serverStop(false)
 { 
+	cpi.SetCorePtr(cp);
 	fdsel->Add(&disp);
 	fdsel->Add(this);	
 }

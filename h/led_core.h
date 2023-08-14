@@ -27,6 +27,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 class LEDCore {
+    friend class CorePultInterface;
     friend class Window365;
 private:
     Timer core_timer;
@@ -42,7 +43,7 @@ private:
 public:
 	// Initializing the pseudo-random number generator in the constructor:
     LEDCore() : core_timer{}, leds{}, fstleds{} { 
-        prandom_init(); 
+        prandom_init();
     }
 
     // No copying and assignment:
@@ -56,20 +57,41 @@ public:
     enum_mode GetMode() const { return currentMode; }
     uint32_t GetMillis() const { return core_timer.Elapsed() * 1000;  }
  
-    void SetBright(int b) { bright = b; }
     void BrightUp();
     void BrightDown();
-    void SetMode(enum_mode m) { currentMode = m; }
     void StopMode();
     void PrevMode();
     void NextMode();
- 
+    
+    void SetMode(enum_mode m) { currentMode = m; }
+    
+    void SetBright(int b) { bright = b; }
     void Show();
     void Clear();
     void Waits(double sec);
     void Fill(int r, int g, int b);
     
     bool CoreRun() const { return !core_quit_flag; }
+};
+
+class CorePultInterface {
+private:
+	LEDCore *core;
+public:
+	CorePultInterface() : core(nullptr) {}
+	
+	void SetCorePtr(LEDCore *cr) { if(cr) { core = cr; } }
+	
+	void Mode(enum_mode m) 	{	core->SetMode(m);	}
+	void Ok()				{	core->StopMode();	}
+	void Up() 				{	core->BrightUp();	}
+	void Down()				{	core->BrightDown();	}
+	void Left() 			{	core->PrevMode();	}
+	void Right() 			{	core->NextMode();	}
+	
+	// No copying and assignment:
+    CorePultInterface(const CorePultInterface&) = delete;
+    CorePultInterface& operator=(const CorePultInterface&) = delete;
 };
 
 

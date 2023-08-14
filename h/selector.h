@@ -122,29 +122,11 @@ private:
 	virtual void Handle(bool r, bool w);
 };
 
-class CorePultInterface {
-private:
-	LEDCore *core;
-public:
-	CorePultInterface(LEDCore *cp) : core(cp) {}
-	
-	void Mode(enum_mode m) 	{	core->SetMode(m);	}
-	void Ok()				{	core->StopMode();	}
-	void Up() 				{	core->BrightUp();	}
-	void Down()				{	core->BrightDown();	}
-	void Left() 			{	core->PrevMode();	}
-	void Right() 			{	core->NextMode();	}
-	
-	// No copying and assignment:
-    CorePultInterface(const CorePultInterface&) = delete;
-    CorePultInterface& operator=(const CorePultInterface&) = delete;
-};
-
 class FdServer : public FdHandler {
 private:
 	DisplaySession disp;
 	FdSelector *fdsel;
-	CorePultInterface cpi;
+	CorePultInterface cpi{};
 	bool serverStop;
 	FdServer(int fdDisp, FdSelector *aFds, LEDCore *cp, int fdSrv);
 public:

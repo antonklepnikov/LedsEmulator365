@@ -77,3 +77,44 @@ Window365 * Window365::Make(LEDCore *core, MainSelector *sel)
 
 
 ////////////////////////////////////////////////////////////////////////////////
+
+int KeyHandler::key_handle(int event) {
+    if (event == FL_SHORTCUT) {
+        switch(Fl::event_key()) {
+            case '1':
+                cpi.Mode(mode_1);    return 1;
+            case '2':
+                cpi.Mode(mode_2);    return 1;
+            case '3':
+                cpi.Mode(mode_3);    return 1;
+            case '4':
+                cpi.Mode(mode_4);    return 1;
+            case '5':
+                cpi.Mode(mode_5);    return 1;
+            case '6':
+                cpi.Mode(mode_6);    return 1;
+            case '7':
+                cpi.Mode(mode_7);    return 1;
+            case '8':
+                cpi.Mode(mode_8);    return 1;
+            case '9':
+                cpi.Mode(mode_9);    return 1;
+            case 'w':
+                cpi.Up();            return 1;
+            case 'a':
+                cpi.Left();          return 1;
+            case 's':
+                cpi.Ok();            return 1;
+            case 'd':
+                cpi.Right();         return 1;
+            case 'x':
+                cpi.Down();          return 1;                                                
+            default:
+                return 0;
+        }
+    } 
+    else { return 0; }    
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
