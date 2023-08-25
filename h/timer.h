@@ -18,16 +18,16 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 class Timer {
-public:
-   Timer() : begn(clock_t::now()) {}
-   void Reset() { begn = clock_t::now(); }
-   double Elapsed() const {
-      return std::chrono::duration_cast<second_t>(clock_t::now()-begn).count();
-   }
 private:
    using clock_t = std::chrono::steady_clock; // Type alias.
    using second_t = std::chrono::duration<double, std::ratio<1>>; // Type alias.
-   std::chrono::time_point<clock_t> begn;
+   std::chrono::time_point<clock_t> start;
+public:
+   Timer() : start(clock_t::now()) {}
+   void Reset() { start = clock_t::now(); }
+   double Elapsed() const {
+      return std::chrono::duration_cast<second_t>(clock_t::now()-start).count();
+   }
 };
 
 

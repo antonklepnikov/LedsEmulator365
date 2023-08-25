@@ -34,15 +34,15 @@ static const char SERVER_WELCOME[] =
 static const char SERVER_NEW_LINE[] = "\nCLI: ";
 
 static const char CLIENT_EXIT[] = "exit";
-static const char CLIENT_MODE_1[] = "mode=1";
-static const char CLIENT_MODE_2[] = "mode=2";
-static const char CLIENT_MODE_3[] = "mode=3";
-static const char CLIENT_MODE_4[] = "mode=4";
-static const char CLIENT_MODE_5[] = "mode=5";
-static const char CLIENT_MODE_6[] = "mode=6";
-static const char CLIENT_MODE_7[] = "mode=7";
-static const char CLIENT_MODE_8[] = "mode=8";
-static const char CLIENT_MODE_9[] = "mode=9";
+static const char CLIENT_MODE_1[] = "m1";
+static const char CLIENT_MODE_2[] = "m2";
+static const char CLIENT_MODE_3[] = "m3";
+static const char CLIENT_MODE_4[] = "m4";
+static const char CLIENT_MODE_5[] = "m5";
+static const char CLIENT_MODE_6[] = "m6";
+static const char CLIENT_MODE_7[] = "m7";
+static const char CLIENT_MODE_8[] = "m8";
+static const char CLIENT_MODE_9[] = "m9";
 static const char CLIENT_UP[] = "up";
 static const char CLIENT_DOWN[] = "down";
 static const char CLIENT_RIGHT[] = "right";
@@ -96,7 +96,6 @@ private:
 	int bufUsed;
 	bool ignoring;
 	FdServer *srvMaster;
-	
 	TcpSession(FdServer *am, int fd);
 	virtual ~TcpSession() {}
 	virtual void Handle(bool r, bool w);
@@ -106,7 +105,6 @@ private:
 	void CheckLines();
 	void ProcessLine(const char *str);
 	void ServerAnswer(const char *str);
-	
 	// No copying and assignment:
     TcpSession(const TcpSession&) = delete;
     TcpSession& operator=(const TcpSession&) = delete;
@@ -116,7 +114,6 @@ class DisplaySession : private FdHandler {
 friend class FdServer;
 private:
 	bool windowClosed;
-	
 	DisplaySession(int fd) : FdHandler(fd, false), windowClosed(false) {}
 	virtual ~DisplaySession() {}
 	virtual void Handle(bool r, bool w);
@@ -126,12 +123,11 @@ class FdServer : public FdHandler {
 private:
 	DisplaySession disp;
 	FdSelector *fdsel;
-	CorePultInterface cpi{};
+	CorePultInterface cpi;
 	bool serverStop;
 	FdServer(int fdDisp, FdSelector *aFds, LEDCore *cp, int fdSrv);
 public:
 	static FdServer* Start(int display, FdSelector *fsl, LEDCore *cp, int port);
-	
 	virtual ~FdServer();
 	virtual void Handle(bool r, bool w);
 	void RemoveTcpSession(TcpSession *s);
@@ -139,14 +135,14 @@ public:
 	bool ServerReady() const { return (!disp.windowClosed && 
 	                                   !serverStop &&
 	                                   fdsel->FdSelReady()); }
-
+	
 	void GUI_Mode(enum_mode m) 	{	cpi.Mode(m);	}
 	void GUI_Ok()				{	cpi.Ok();		}
 	void GUI_Up() 				{	cpi.Up();		}
 	void GUI_Down()				{	cpi.Down();		}
 	void GUI_Left() 			{	cpi.Left();		}
 	void GUI_Right() 			{	cpi.Right();	}
-
+	
 	// No copying and assignment:
     FdServer(const FdServer&) = delete;
     FdServer& operator=(const FdServer&) = delete;	
@@ -165,22 +161,26 @@ private:
     
     std::array<OOFLButton*, NUM_ALL_BUTTONS> buttons;
     
-    ModeRainbow 			rainbow{};									   // 1
-    ModeRainbowMeteor 		rainbowMeteor{};      						   // 2
-    ModeRainbowGlitter 		rainbowGlitter{};							   // 3
-    ModeStars				stars{};			                           // 4	  
-    ModeRunningDots			runningDots{};								   // 5
-    ModePacifica            pacifica{};                                    // 6
-    ModeRGB                 rgb{};                                         // 7 
-    ModeCMYK                cmyk{};                                        // 8
-    ModeWhite               white{};                                       // 9  
-    ModeStop 				stop{};                                        // O
+    ModeRainbow 			rainbow;									   // 1
+    ModeRainbowMeteor 		rainbowMeteor;      						   // 2
+    ModeRainbowGlitter 		rainbowGlitter; 							   // 3
+    ModeStars				stars;  			                           // 4	  
+    ModeRunningDots			runningDots;								   // 5
+    ModePacifica            pacifica;                                      // 6
+    ModeRGB                 rgb;                                           // 7 
+    ModeCMYK                cmyk;                                          // 8
+    ModeWhite               white;                                         // 9  
+    ModeStop 				stop;                                          // O
 
-    void MainLoopStep();
+    void MainStep();
 
 public:
     MainSelector(FdServer *s, LEDCore *c) 
-    	: tcps(s), core(c), buttons{} {}
+    	: tcps(s), core(c), buttons(),
+    	  rainbow(c, mode_1), rainbowMeteor(c, mode_2), 
+    	  rainbowGlitter(c, mode_3), stars(c, mode_4), runningDots(c, mode_5), 
+    	  pacifica(c, mode_6), rgb(c, mode_7), cmyk(c, mode_8), 
+    	  white(c, mode_9), stop(c, mode_stop) {}
 
     // No copying and assignment:
     MainSelector(const MainSelector&) = delete;

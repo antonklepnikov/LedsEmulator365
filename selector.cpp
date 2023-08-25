@@ -92,9 +92,9 @@ FdServer* FdServer::Start(int display, FdSelector *fsl, LEDCore *cp, int port)
 }
 
 FdServer::FdServer(int fdDisp, FdSelector *fsl, LEDCore *cp, int fdSrv) 
-	: FdHandler(fdSrv, true), disp(fdDisp), fdsel(fsl), serverStop(false)
+	: FdHandler(fdSrv, true), disp(fdDisp), fdsel(fsl), cpi(), serverStop(false)
 { 
-	cpi.SetCorePtr(cp);
+	cpi.Init(cp);
 	fdsel->Add(&disp);
 	fdsel->Add(this);	
 }
@@ -105,8 +105,7 @@ FdServer::~FdServer()
 	close(GetFd());
 }
 
-void FdServer::Handle(bool r, [[maybe_unused]] bool w) // LOGGING?!
-                                                       // DELETE TCPSESSION?!
+void FdServer::Handle(bool r, [[maybe_unused]] bool w)
 {
 	if(!r) { return; }
 	sockaddr_in addr{};
@@ -287,70 +286,30 @@ void DisplaySession::Handle(bool r, [[maybe_unused]] bool w)
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void MainSelector::MainLoopStep()
+void MainSelector::MainStep()
 {
-    auto mode{ core->GetMode() };
-    switch(mode) {
-        case mode_1:
-            if(!rainbow.GetReady())
-            	rainbow.Init(core, mode_1);
-            rainbow.Enable();
-            break;
-        case mode_2:
-            if(!rainbowMeteor.GetReady())
-            	rainbowMeteor.Init(core, mode_2);
-            rainbowMeteor.Enable();
-	        break;
-        case mode_3:
-            if(!rainbowGlitter.GetReady())
-            	rainbowGlitter.Init(core, mode_3); 
-            rainbowGlitter.Enable();
-            break;
-        case mode_4:
-            if(!stars.GetReady())
-            	stars.Init(core, mode_4); 
-            stars.Enable();
-            break;
-        case mode_5:
-            if(!runningDots.GetReady())
-            	runningDots.Init(core, mode_5); 
-            runningDots.Enable();
-            break;
-        case mode_6:
-            if(!pacifica.GetReady())
-            	pacifica.Init(core, mode_6); 
-            pacifica.Enable();
-            break;
-        case mode_7:
-           if(!rgb.GetReady())
-            	rgb.Init(core, mode_7); 
-            rgb.Enable();
-            break;
-        case mode_8:
-           if(!cmyk.GetReady())
-            	cmyk.Init(core, mode_8); 
-            cmyk.Enable();
-            break;
-        case mode_9:
-           if(!white.GetReady())
-            	white.Init(core, mode_6); 
-            white.Enable();
-            break;
-        case mode_stop:
-            if(!stop.GetReady()) { stop.Init(core, mode_stop); }
-            stop.Enable();
-            break;
-        default:
-            break;
+    switch(core->GetMode()) {
+        case mode_1:        rainbow.Step();        break;
+        case mode_2:        rainbowMeteor.Step();  break;
+        case mode_3:        rainbowGlitter.Step(); break;
+        case mode_4:        stars.Step();          break;
+        case mode_5:        runningDots.Step();    break;
+        case mode_6:        pacifica.Step();       break;
+        case mode_7:        rgb.Step();            break;
+        case mode_8:        cmyk.Step();           break;
+        case mode_9:        white.Step();          break;
+        case mode_stop:     stop.Step();           break;        
+        case mode_null:
+        default:                                   break;
     }
 }
 
 void MainSelector::Run()
 {   
-    Fl::check();
+    core->FltkStep();
     while(core->CoreRun() && tcps->ServerReady()) {
         tcps->ServerStep();
-        MainLoopStep();
+        MainStep();
     }
 }
 

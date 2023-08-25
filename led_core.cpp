@@ -15,6 +15,15 @@
 /// LEDCore ////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+void LEDCore::SetMode(enum_mode m)
+{
+    if((currentMode == mode_stop || 
+        currentMode == mode_null) && 
+        m != mode_null) { isStop = false; } 
+    ClearLongWait();
+    currentMode = m;
+}
+
 void LEDCore::BrightUp()
 {
     int b{ GetBright() };
@@ -33,13 +42,13 @@ void LEDCore::BrightDown()
 
 void LEDCore::StopMode() 
 {
-    if(stopped) {
-        stopped = false;
-        currentMode = savedMode;
+    if(isStop) {
+        isStop = false;
+        SetMode(befStopMode);
     } else {
-        stopped = true;
-        savedMode = currentMode;
-        currentMode = mode_stop;
+        befStopMode = currentMode;
+        isStop = true;
+        SetMode(mode_stop);        
     }
 } 
 
@@ -114,8 +123,8 @@ void LEDCore::Waits(double sec)
 {
     Timer t;
     while(true) {
-        if(t.Elapsed() >= sec) { return; }
         if(!Fl::check()) { core_quit_flag = true; }
+        if(t.Elapsed() >= sec) { return; }
     }
 }
 
@@ -124,6 +133,28 @@ void LEDCore::Fill(int r, int g, int b)
     for(auto& fl : fstleds)
         fl.SetIntRGB(r, g, b);
     Show();
+}
+
+void LEDCore::SetLongWait(double sec)
+{
+    wait_for = sec;
+    in_waiting = true;
+    waitTimer.Reset();
+}
+
+void LEDCore::ClearLongWait()
+{ 
+    wait_for = 0.0;
+    in_waiting = false;
+}
+
+bool LEDCore::NoLongWait()
+{
+    if(waitTimer.Elapsed() >= wait_for) {
+        ClearLongWait();
+        return true;
+    } 
+    else { return false; } 
 }
 
 
@@ -146,18 +177,19 @@ void fill_in_turn(LEDCore *core,
 /// Pattern ////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void ModeStop::IntLoop()
+void ModeStop::PatternStep()
 {
     core->Clear();
     core->SetMode(mode_null);
     core->Waits(0.001);
 }
 
+////////////////////////////////////////////////////////////////////////////////
 
-void ModeRainbow::IntLoop()
+void ModeRainbow::PatternStep()
 {
     int shue{};
-    while(core->GetMode() == curr && core->CoreRun()) {
+    while(core->GetMode() == mode && core->CoreRun()) {
         fill_rainbow(core->GetFstleds(), NUM_LEDS, shue, 20);
         core->Show();
         core->Waits(0.01);
@@ -166,6 +198,7 @@ void ModeRainbow::IntLoop()
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////
 
 void ModeRainbowMeteor::FadeAll()
 {
@@ -174,11 +207,13 @@ void ModeRainbowMeteor::FadeAll()
     }
 }
 
-void ModeRainbowMeteor::IntLoop()
+////////////////////////////////////////////////////////////////////////////////
+
+void ModeRainbowMeteor::PatternStep()
 {
     int hue{ 150 };
     core->Clear();
-    while(core->GetMode() == curr && core->CoreRun()) {
+    while(core->GetMode() == mode && core->CoreRun()) {
         for(int i = 0; i < NUM_LEDS; ++i) {
             ++hue;
             if(hue > 255) { hue = 0; }
@@ -186,7 +221,7 @@ void ModeRainbowMeteor::IntLoop()
             FadeAll();
             core->Show();
             core->Waits(0.03);
-            if(core->GetMode() != curr) { return; }
+            if(core->GetMode() != mode) { return; }
         }
         for(int i = NUM_LEDS - 1; i >= 0; --i) {
             ++hue;
@@ -195,11 +230,12 @@ void ModeRainbowMeteor::IntLoop()
             FadeAll();
             core->Show();
             core->Waits(0.03);
-            if(core->GetMode() != curr) { return; }            
+            if(core->GetMode() != mode) { return; }            
         }
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////
 
 void ModeRainbowGlitter::AddGlitter(int chance)
 {
@@ -207,11 +243,10 @@ void ModeRainbowGlitter::AddGlitter(int chance)
 	    (*core)[prandom_range(NUM_LEDS) - 1] += CRGB::White;
 	}
 }
-
-void ModeRainbowGlitter::IntLoop()
+void ModeRainbowGlitter::PatternStep()
 {
     int shue{ 0 };
-    while(core->GetMode() == curr && core->CoreRun()) {
+    while(core->GetMode() == mode && core->CoreRun()) {
         fill_rainbow(core->GetFstleds(), NUM_LEDS, shue, 5);
         AddGlitter(30);
         AddGlitter(50);
@@ -222,8 +257,9 @@ void ModeRainbowGlitter::IntLoop()
     }
 }
 
-
-void ModeStars::IntLoop()
+////////////////////////////////////////////////////////////////////////////////
+/*
+void ModeStars::PatternStep()
 {
 	size_t i{};
 	size_t random_led{ 0 };
@@ -237,7 +273,7 @@ void ModeStars::IntLoop()
 		}
 	}
 	// Random stars:
-	while(core->GetMode() == curr && core->CoreRun()) {
+	while(core->GetMode() == mode && core->CoreRun()) {
 		random_led = static_cast<size_t>(prandom_range(NUM_LEDS) - 1);
 		if(barr.at(random_led)) { continue; }
 		barr.at(random_led) = true;
@@ -248,7 +284,7 @@ void ModeStars::IntLoop()
 		if(star_count >= NUM_LEDS) { break; }
 	}
 	// Random base:
-	while(core->GetMode() == curr && core->CoreRun()) {
+	while(core->GetMode() == mode && core->CoreRun()) {
 		random_led = static_cast<size_t>(prandom_range(NUM_LEDS) - 1);
 		if(!barr.at(random_led)) { continue; }
 		barr.at(random_led) = false;
@@ -259,23 +295,52 @@ void ModeStars::IntLoop()
 		if(star_count <= 0) { break; }
 	}
 }
+*/
 
-
-void ModeRunningDots::IntLoop()
+void ModeStars::PatternStep()
 {
-    size_t max_shift = carr.size();
-    size_t shift = max_shift;
-    while(core->GetMode() == curr && core->CoreRun()) {
-        fill_in_turn(core, carr, shift);
-        core->Show();
-        core->Waits(k_delay);
-        --shift;
-        if(shift == 0)
-            shift = max_shift;
+    // Show state:
+    for(size_t i = 0; i < NUM_LEDS; ++i) {
+        if(barr.at(i)) { 
+            (*core)[i] = star_col; 
+        } else { 
+            (*core)[i] = base_col; 
+        }
+    }
+    core->Show();
+	core->FltkStep();
+    
+	//Random stars or base:
+	if(filling) {
+	    do {
+	        random_led = static_cast<size_t>(prandom_range(NUM_LEDS) - 1);
+	    } while(barr.at(random_led) == false);
+	    barr.at(random_led) = true;
+	    ++star_count;
+	    if(star_count == NUM_LEDS) { filling = false; }
 	}
+	else {
+		random_led = static_cast<size_t>(prandom_range(NUM_LEDS) - 1);
+		barr.at(random_led) = false;
+		--star_count;
+		if(star_count == 0) { filling = true; }	
+	}
+	
+    core->SetLongWait(k_delay);
 }
 
+////////////////////////////////////////////////////////////////////////////////
 
+void ModeRunningDots::PatternStep()
+{
+    fill_in_turn(core, carr, shift);
+    --shift;
+    if(shift == 0) { shift = max_shift; }
+    core->Show();
+    core->SetLongWait(k_delay);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 void ModePacifica::pacifica_one_layer(CRGBPalette16& p, 
 									  uint16_t cistart, uint16_t wavescale, 
@@ -312,7 +377,7 @@ void ModePacifica::pacifica_add_whitecaps()
   	}
 }
 
-void ModePacifica::IntLoop()
+void ModePacifica::PatternStep()
 {   
 	// Increment the four "color index start" counters, one for each wave layer.
 	// Each is incremented at a different speed, and the speeds vary over time.
@@ -354,32 +419,36 @@ void ModePacifica::IntLoop()
 	pacifica_add_whitecaps();
 		
   	core->Show();
-	core->Waits(k_delay);
+    core->SetLongWait(k_delay);
 }
 
+////////////////////////////////////////////////////////////////////////////////
 
-void ModeRGB::IntLoop()
+void ModeRGB::PatternStep()
 {
     fill_in_turn(core, carr);
     core->Show();
-    core->Waits(k_delay);
+    core->SetLongWait(k_delay);
 }
 
+////////////////////////////////////////////////////////////////////////////////
 
-void ModeCMYK::IntLoop()
+void ModeCMYK::PatternStep()
 {
     fill_in_turn(core, carr);
     core->Show();
-    core->Waits(k_delay);
+    core->SetLongWait(k_delay);
 }
 
+////////////////////////////////////////////////////////////////////////////////
 
-void ModeWhite::IntLoop()
+void ModeWhite::PatternStep()
 {
     fill_solid(core->GetFstleds(), NUM_LEDS, CRGB::White);
     core->Show();
-	core->Waits(k_delay);
+    core->SetLongWait(k_delay);
 }
 
 
+////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////

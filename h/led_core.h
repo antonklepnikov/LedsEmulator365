@@ -22,6 +22,15 @@
 #include <array>
 
 
+
+
+
+#include <iostream>
+
+
+
+
+
 ////////////////////////////////////////////////////////////////////////////////
 /// CLASS: LEDCore /////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -30,21 +39,22 @@ class LEDCore {
     friend class CorePultInterface;
     friend class Window365;
 private:
-    Timer core_timer;
+    Timer mainTimer;    
+    Timer waitTimer;
     std::array<OOFLBox*, NUM_LEDS> leds;
     std::array<CRGB, NUM_LEDS> fstleds;
+    enum_mode currentMode{ mode_null };
+    enum_mode befStopMode{ mode_null };
+    bool isStop{ false };
+    bool core_quit_flag{ false };
+    bool in_waiting{ false };
+    double wait_for{ 0.0 };    
     int bright{ INIT_BRIGHT };
     const int k_min_num_mode{ 1 };
     const int k_max_num_mode{ 9 };
-    enum_mode currentMode{ mode_null };
-    enum_mode savedMode{ mode_null };
-    bool stopped{ false };
-    bool core_quit_flag{ false };
 public:
 	// Initializing the pseudo-random number generator in the constructor:
-    LEDCore() : core_timer{}, leds{}, fstleds{} { 
-        prandom_init();
-    }
+    LEDCore() : mainTimer(), waitTimer(), leds(), fstleds() { prandom_init(); }
 
     // No copying and assignment:
     LEDCore(const LEDCore&) = delete;
@@ -55,15 +65,14 @@ public:
  
     int GetBright() const { return bright; }
     enum_mode GetMode() const { return currentMode; }
-    uint32_t GetMillis() const { return core_timer.Elapsed() * 1000;  }
+    uint32_t GetMillis() const { return mainTimer.Elapsed() * 1000;  }
  
+    void SetMode(enum_mode m);
     void BrightUp();
     void BrightDown();
     void StopMode();
     void PrevMode();
     void NextMode();
-    
-    void SetMode(enum_mode m) { currentMode = m; }
     
     void SetBright(int b) { bright = b; }
     void Show();
@@ -71,16 +80,21 @@ public:
     void Waits(double sec);
     void Fill(int r, int g, int b);
     
+    void FltkStep() { if(!Fl::check()) { core_quit_flag = true; } }
     bool CoreRun() const { return !core_quit_flag; }
+    
+    void SetLongWait(double sec);
+    void ClearLongWait();
+    bool NoLongWait();
 };
 
 class CorePultInterface {
 private:
 	LEDCore *core;
 public:
-	CorePultInterface() : core(nullptr) {}
+	CorePultInterface() = default;
 	
-	void SetCorePtr(LEDCore *cr) { if(cr) { core = cr; } }
+	void Init(LEDCore *cp) { if(cp) { core = cp; } }
 	
 	void Mode(enum_mode m) 	{	core->SetMode(m);	}
 	void Ok()				{	core->StopMode();	}
@@ -111,23 +125,21 @@ void fill_in_turn(LEDCore *core,
 
 class Pattern {
 protected:
-    LEDCore* core{nullptr};
-    enum_mode curr{mode_null};
-    bool ready{false};
-    virtual void IntLoop() = 0;
+    LEDCore* core;
+    enum_mode mode;
+    virtual void PatternStep() = 0;
 public:
-    Pattern() = default;
+    Pattern(LEDCore *c, enum_mode m) : core(c), mode(m) {}
+    
     // No copying and assignment:
     Pattern(const Pattern&) = delete;
     Pattern& operator=(const Pattern&) = delete;
-    void Init(LEDCore *c, enum_mode m) { core = c; curr = m; ready = true; }
-    bool GetReady() const { return ready; }
-    void Enable() {
-        if(!ready) {
-            throw std::logic_error("Pattern initialization is expected!"); 
-        }
-        IntLoop();
+    
+    void Step() {
+        core->FltkStep();
+        if(core->NoLongWait()) { PatternStep(); }
     }
+    
     virtual ~Pattern() = default;
 };
 
@@ -136,9 +148,9 @@ public:
 /////////////////////////////////////
 class ModeStop : public Pattern {
 protected:
-    virtual void IntLoop();
+    virtual void PatternStep();
 public:
-    ModeStop() = default;
+    ModeStop(LEDCore *c, enum_mode m) : Pattern(c, m) {}
     virtual ~ModeStop() = default;
 };
 
@@ -147,9 +159,9 @@ public:
 /////////////////////////////////////
 class ModeRainbow : public Pattern {
 protected:
-    virtual void IntLoop();
+    virtual void PatternStep();
 public:
-    ModeRainbow() = default;
+    ModeRainbow(LEDCore *c, enum_mode m) : Pattern(c, m) {}
     virtual ~ModeRainbow() = default;
 };
 
@@ -159,9 +171,9 @@ public:
 class ModeRainbowMeteor : public Pattern {
 protected:
     void FadeAll();
-    virtual void IntLoop();
+    virtual void PatternStep();
 public:
-    ModeRainbowMeteor() = default;
+    ModeRainbowMeteor(LEDCore *c, enum_mode m) : Pattern(c, m) {}
     virtual ~ModeRainbowMeteor() = default;
 };
 
@@ -171,9 +183,9 @@ public:
 class ModeRainbowGlitter : public Pattern {
 protected:
 	void AddGlitter(int chance);
-	virtual void IntLoop();
+	virtual void PatternStep();
 public:
-	ModeRainbowGlitter() = default;
+	ModeRainbowGlitter(LEDCore *c, enum_mode m) : Pattern(c, m) {}
 	virtual ~ModeRainbowGlitter() = default;
 };
 
@@ -182,13 +194,18 @@ public:
 /////////////////////////////////////
 class ModeStars : public Pattern {
 protected:
+	const double k_delay{ 0.1 };
+	std::vector<bool> barr;
+	size_t random_led;
+	int star_count;
+	bool filling;
 	CRGB base_col{ CRGB::White };
 	CRGB star_col{ CRGB::Gold };
-	const double k_delay{ 0.05 };
-	std::vector<bool> barr;
-	virtual void IntLoop();
+	virtual void PatternStep();
 public:
-	ModeStars() : barr(NUM_LEDS) {}
+	ModeStars(LEDCore *c, enum_mode m) 
+	    : Pattern(c, m), barr(NUM_LEDS),
+	      random_led(0), star_count(0), filling(true) {}
 	virtual ~ModeStars() = default;
 };
 
@@ -200,9 +217,16 @@ protected:
 	const double k_delay{ 0.5 };
 	std::array<CRGB, 5> carr{ CRGB::Blue, CRGB::Pink, CRGB::Green, 
 	                          CRGB::Gold, CRGB::Red };
-	virtual void IntLoop();
+	size_t max_shift;
+    size_t shift;
+	virtual void PatternStep();
 public:
-	ModeRunningDots() = default;
+	ModeRunningDots(LEDCore *c, enum_mode m) 
+	    : Pattern(c, m), max_shift(0), shift(0)
+	{
+	    max_shift = carr.size();
+	    shift = max_shift;
+	}
 	virtual ~ModeRunningDots() = default;
 };
 
@@ -213,7 +237,6 @@ public:
 class ModePacifica : public Pattern {
 protected:
 	const double k_delay{ 0.02 };
-	
 	CRGBPalette16 pacifica_palette_1 = 
 	    { 0x000507, 0x000409, 0x00030B, 0x00030D, 
           0x000210, 0x000212, 0x000114, 0x000117, 
@@ -238,9 +261,9 @@ protected:
 	void pacifica_add_whitecaps();
 	// Deepen the blues and greens
 	void pacifica_deepen_colors();
-	virtual void IntLoop();
+	virtual void PatternStep();
 public:
-	ModePacifica() = default;
+	ModePacifica(LEDCore *c, enum_mode m) : Pattern(c, m) {}
 	virtual ~ModePacifica() = default;
 };
 
@@ -251,9 +274,9 @@ class ModeRGB : public Pattern {
 protected:
 	const double k_delay{ 0.5 };
 	std::array<CRGB, 3> carr{ CRGB::Red, CRGB::Green, CRGB::Blue };
-	virtual void IntLoop();
+	virtual void PatternStep();
 public:
-	ModeRGB() = default;
+	ModeRGB(LEDCore *c, enum_mode m) : Pattern(c, m) {}
 	virtual ~ModeRGB() = default;
 };
 
@@ -265,9 +288,9 @@ protected:
 	const double k_delay{ 0.5 };
 	std::array<CRGB, 4> carr{ CRGB::Cyan, CRGB::Magenta, 
 	                          CRGB::Yellow, CRGB::Black };
-	virtual void IntLoop();
+	virtual void PatternStep();
 public:
-	ModeCMYK() = default;
+	ModeCMYK(LEDCore *c, enum_mode m) : Pattern(c, m) {}
 	virtual ~ModeCMYK() = default;
 };
 
@@ -277,9 +300,9 @@ public:
 class ModeWhite : public Pattern {
 protected:
 	const double k_delay{ 0.5 };
-	virtual void IntLoop();
+	virtual void PatternStep();
 public:
-	ModeWhite() = default;
+	ModeWhite(LEDCore *c, enum_mode m) : Pattern(c, m) {}
 	virtual ~ModeWhite() = default;
 };
 

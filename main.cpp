@@ -10,7 +10,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #include <iostream>
-
 #include <X11/Xlib.h>
 #include "led_gui.h"
 #include "led_core.h"
@@ -30,50 +29,48 @@ CorePultInterface KeyHandler::cpi;
 
 int main(int argc, char *argv[])
 {
-    std::exception_ptr eptr;    // Object for storing exceptions or nullptr.
-    
-    ////////////////////////////////////////////////////////////////////////////
-    
-    auto ds { XOpenDisplay(0) };
-if(!ds) { // ERROR HANDLING
- 	std::cerr << "Can't open display!" << std::endl;
-   	std::exit(1); 
-}
-	fl_open_display(ds);
-    auto dsFd { ConnectionNumber(ds) };
-std::cerr << "Display fd = " << dsFd << std::endl;    
-    
-    ////////////////////////////////////////////////////////////////////////////
-    
+    std::exception_ptr exceptPtr;    // Object for storing exceptions or nullptr.
     try {
-        auto core{ new LEDCore };
-        
-        [[maybe_unused]] auto keyHandler{ new KeyHandler() };
-        KeyHandler::cpi.SetCorePtr(core);
-        
-        auto fdsel{ new FdSelector };
-         
-        auto server{ FdServer::Start(dsFd, fdsel, core, TCP_LISTEN_PORT) };
-if(!server) { // ERROR HANDLING, WORKING WITHOUT SERVER!!!???
-	std::cerr << "Error of starting TCP-server, std::exit(1)" << std::endl;
-	std::exit(1);
-} else {
-	std::cerr << "TCP-server running on port " << TCP_LISTEN_PORT << std::endl; 
-}
-
-		auto selector { new MainSelector(server, core) };
-        auto window{ Window365::Make(core, selector) };
-      
-        window->show(argc, argv);
-        selector->Run();
-        
-    } catch(...) {
-        eptr = std::current_exception();
-        return process_exception(eptr);
-    }
-        
-std::cerr << "Return 0, bye" << std::endl; 
-    return 0;
-}
+        auto display { XOpenDisplay(0) };
 
 ////////////////////////////////////////////////////////////////////////////////
+if(!display) {
+    std::cerr << "Can't open display, exit(1)" << std::endl;
+   	std::exit(1); 
+}
+////////////////////////////////////////////////////////////////////////////////
+
+    	fl_open_display(display);
+        auto displayFd { ConnectionNumber(display) };    
+        auto core{ new LEDCore };
+        auto fdSel{ new FdSelector };
+        auto server{ FdServer::Start(displayFd, fdSel, core, TCP_LISTEN_PORT) };
+
+////////////////////////////////////////////////////////////////////////////////
+if(!server) {
+    std::cerr << "Error of starting TCP-server, working without network..."
+              << std::endl;
+} 
+else {
+	std::cerr << "TCP-server is running on port: " << TCP_LISTEN_PORT 
+	          << std::endl; 
+}
+////////////////////////////////////////////////////////////////////////////////
+
+        auto selector { new MainSelector(server, core) };
+        auto window{ Window365::Make(core, selector) };
+        [[maybe_unused]] auto keyHandler{ new KeyHandler() };
+        KeyHandler::cpi.Init(core);
+        window->show(argc, argv);
+        selector->Run();
+    } catch(...) {
+        exceptPtr = std::current_exception();
+        return process_exception(exceptPtr);
+    }
+
+////////////////////////////////////////////////////////////////////////////////
+std::cerr << "Shutdown, exit(0)" << std::endl;
+////////////////////////////////////////////////////////////////////////////////
+
+    return 0;
+}
