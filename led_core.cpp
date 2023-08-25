@@ -175,27 +175,34 @@ void fill_in_turn(LEDCore *core,
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Pattern ////////////////////////////////////////////////////////////////////
+
+void Pattern::SaveState()
+{
+	for(size_t i = 0; i < NUM_LEDS; ++i) { ledDump.at(i) = (*core)[i]; }
+}
+
+void Pattern::LoadState()
+{
+	for(size_t i = 0; i < NUM_LEDS; ++i) { (*core)[i] = ledDump.at(i); }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
 void ModeStop::PatternStep()
 {
-    core->Clear();
     core->SetMode(mode_null);
-    core->Waits(0.001);
+    core->Clear();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 void ModeRainbow::PatternStep()
 {
-    int shue{};
-    while(core->GetMode() == mode && core->CoreRun()) {
-        fill_rainbow(core->GetFstleds(), NUM_LEDS, shue, 20);
-        core->Show();
-        core->Waits(0.01);
-        --shue;
-        if(shue < 0) { shue = 255; }
-    }
+    fill_rainbow(core->GetFstleds(), NUM_LEDS, initHue, k_deltaHue);
+    initHue -= k_stepHue;
+    if(initHue < 0) { initHue = 255; }
+    core->SetLongWait(k_delay);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -207,32 +214,24 @@ void ModeRainbowMeteor::FadeAll()
     }
 }
 
-////////////////////////////////////////////////////////////////////////////////
-
 void ModeRainbowMeteor::PatternStep()
 {
-    int hue{ 150 };
-    core->Clear();
-    while(core->GetMode() == mode && core->CoreRun()) {
-        for(int i = 0; i < NUM_LEDS; ++i) {
-            ++hue;
-            if(hue > 255) { hue = 0; }
-            (*core)[i] = CHSV(hue, 255, 255);
-            FadeAll();
-            core->Show();
-            core->Waits(0.03);
-            if(core->GetMode() != mode) { return; }
-        }
-        for(int i = NUM_LEDS - 1; i >= 0; --i) {
-            ++hue;
-            if(hue < 0) { hue = 255; }
-            (*core)[i] = CHSV(hue, 255, 255);
-            FadeAll();
-            core->Show();
-            core->Waits(0.03);
-            if(core->GetMode() != mode) { return; }            
-        }
-    }
+	if(dirForward) {
+        ++hue;
+        if(hue > 255) { hue = 0; }
+        (*core)[it] = CHSV(hue, 255, 255);
+        FadeAll();
+		++it;
+		if(it == (NUM_LEDS - 1)) { dirForward = false; }
+	} else {
+        ++hue;
+        if(hue < 0) { hue = 255; }
+        (*core)[it] = CHSV(hue, 255, 255);
+        FadeAll();
+		--it;
+		if(it == 0) { dirForward = true; }
+	}
+	core->SetLongWait(k_delay);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -243,89 +242,44 @@ void ModeRainbowGlitter::AddGlitter(int chance)
 	    (*core)[prandom_range(NUM_LEDS) - 1] += CRGB::White;
 	}
 }
+
 void ModeRainbowGlitter::PatternStep()
 {
-    int shue{ 0 };
-    while(core->GetMode() == mode && core->CoreRun()) {
-        fill_rainbow(core->GetFstleds(), NUM_LEDS, shue, 5);
-        AddGlitter(30);
-        AddGlitter(50);
-        core->Show();
-        core->Waits(0.1);
-        shue -= 5;
-        if(shue < 0) { shue = 255; }
-    }
+    fill_rainbow(core->GetFstleds(), NUM_LEDS, initHue, k_deltaHue);
+    AddGlitter(k_chanceGlitter1);
+    AddGlitter(k_chanceGlitter2);
+    initHue -= k_stepHue;
+    if(initHue < 0) { initHue = 255; }
+    core->SetLongWait(k_delay);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/*
-void ModeStars::PatternStep()
-{
-	size_t i{};
-	size_t random_led{ 0 };
-	int star_count{ 0 };
-	fill_solid(core->GetFstleds(), NUM_LEDS, base_col);
-	// First, checking stars:
-	for(i = 0; i < NUM_LEDS; ++i) {
-		if(barr.at(i)) {
-			(*core)[i] = star_col;
-			++star_count;
-		}
-	}
-	// Random stars:
-	while(core->GetMode() == mode && core->CoreRun()) {
-		random_led = static_cast<size_t>(prandom_range(NUM_LEDS) - 1);
-		if(barr.at(random_led)) { continue; }
-		barr.at(random_led) = true;
-		(*core)[random_led] = star_col;
-		++star_count;
-		core->Show();
-		core->Waits(k_delay);
-		if(star_count >= NUM_LEDS) { break; }
-	}
-	// Random base:
-	while(core->GetMode() == mode && core->CoreRun()) {
-		random_led = static_cast<size_t>(prandom_range(NUM_LEDS) - 1);
-		if(!barr.at(random_led)) { continue; }
-		barr.at(random_led) = false;
-		(*core)[random_led] = base_col;
-		--star_count;
-		core->Show();
-		core->Waits(k_delay);
-		if(star_count <= 0) { break; }
-	}
-}
-*/
 
 void ModeStars::PatternStep()
 {
-    // Show state:
+    // Restore leds state:
     for(size_t i = 0; i < NUM_LEDS; ++i) {
-        if(barr.at(i)) { 
+        if(stars.test(i)) { 
             (*core)[i] = star_col; 
         } else { 
             (*core)[i] = base_col; 
         }
     }
-    core->Show();
-	core->FltkStep();
-    
 	//Random stars or base:
 	if(filling) {
-	    do {
-	        random_led = static_cast<size_t>(prandom_range(NUM_LEDS) - 1);
-	    } while(barr.at(random_led) == false);
-	    barr.at(random_led) = true;
+	    do { random_led = static_cast<size_t>(prandom_range(NUM_LEDS) - 1);
+	    } while(stars.test(random_led));
+	    stars.set(random_led);
 	    ++star_count;
 	    if(star_count == NUM_LEDS) { filling = false; }
 	}
 	else {
-		random_led = static_cast<size_t>(prandom_range(NUM_LEDS) - 1);
-		barr.at(random_led) = false;
+		do { random_led = static_cast<size_t>(prandom_range(NUM_LEDS) - 1);
+		} while(!stars.test(random_led));
+		stars.reset(random_led);
 		--star_count;
 		if(star_count == 0) { filling = true; }	
 	}
-	
     core->SetLongWait(k_delay);
 }
 
@@ -336,7 +290,6 @@ void ModeRunningDots::PatternStep()
     fill_in_turn(core, carr, shift);
     --shift;
     if(shift == 0) { shift = max_shift; }
-    core->Show();
     core->SetLongWait(k_delay);
 }
 
@@ -418,7 +371,6 @@ void ModePacifica::PatternStep()
 	// Add brighter 'whitecaps' where the waves lines up more
 	pacifica_add_whitecaps();
 		
-  	core->Show();
     core->SetLongWait(k_delay);
 }
 
@@ -427,7 +379,6 @@ void ModePacifica::PatternStep()
 void ModeRGB::PatternStep()
 {
     fill_in_turn(core, carr);
-    core->Show();
     core->SetLongWait(k_delay);
 }
 
@@ -436,7 +387,6 @@ void ModeRGB::PatternStep()
 void ModeCMYK::PatternStep()
 {
     fill_in_turn(core, carr);
-    core->Show();
     core->SetLongWait(k_delay);
 }
 
@@ -445,7 +395,6 @@ void ModeCMYK::PatternStep()
 void ModeWhite::PatternStep()
 {
     fill_solid(core->GetFstleds(), NUM_LEDS, CRGB::White);
-    core->Show();
     core->SetLongWait(k_delay);
 }
 

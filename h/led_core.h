@@ -18,17 +18,8 @@
 
 #include <FL/Fl.H>
 
-#include <vector>
 #include <array>
-
-
-
-
-
-#include <iostream>
-
-
-
+#include <bitset>
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -127,18 +118,30 @@ class Pattern {
 protected:
     LEDCore* core;
     enum_mode mode;
+    std::array<CRGB, NUM_LEDS> ledDump;
     virtual void PatternStep() = 0;
 public:
-    Pattern(LEDCore *c, enum_mode m) : core(c), mode(m) {}
+    Pattern(LEDCore *c, enum_mode m) : core(c), mode(m), ledDump()
+    {
+    	for(auto& l : ledDump) { l = CRGB::Black; }
+    }
     
     // No copying and assignment:
     Pattern(const Pattern&) = delete;
     Pattern& operator=(const Pattern&) = delete;
     
     void Step() {
-        core->FltkStep();
-        if(core->NoLongWait()) { PatternStep(); }
+        if(core->NoLongWait()) { 
+        	LoadState();
+        	PatternStep(); 
+        	core->Show();
+        	SaveState();
+        }
+    	core->FltkStep();
     }
+    
+    void SaveState();
+    void LoadState();
     
     virtual ~Pattern() = default;
 };
@@ -159,9 +162,13 @@ public:
 /////////////////////////////////////
 class ModeRainbow : public Pattern {
 protected:
+	const double k_delay{ 0.1 };
+	const int k_deltaHue{ 30 };
+	const int k_stepHue{ 5 };
+	int initHue;
     virtual void PatternStep();
 public:
-    ModeRainbow(LEDCore *c, enum_mode m) : Pattern(c, m) {}
+    ModeRainbow(LEDCore *c, enum_mode m) : Pattern(c, m), initHue(0) {}
     virtual ~ModeRainbow() = default;
 };
 
@@ -170,10 +177,15 @@ public:
 /////////////////////////////////////
 class ModeRainbowMeteor : public Pattern {
 protected:
+    const double k_delay{ 0.03 };
+    int hue;
+    int it;
+    bool dirForward;
     void FadeAll();
     virtual void PatternStep();
 public:
-    ModeRainbowMeteor(LEDCore *c, enum_mode m) : Pattern(c, m) {}
+    ModeRainbowMeteor(LEDCore *c, enum_mode m) 
+    	: Pattern(c, m), hue(150), it(0), dirForward(true) {}
     virtual ~ModeRainbowMeteor() = default;
 };
 
@@ -182,10 +194,16 @@ public:
 /////////////////////////////////////
 class ModeRainbowGlitter : public Pattern {
 protected:
+	const double k_delay{ 0.1 };
+	const int k_chanceGlitter1{ 30 };
+	const int k_chanceGlitter2{ 50 };
+	const int k_deltaHue{ 5 };
+	const int k_stepHue{ 5 };
+	int initHue;
 	void AddGlitter(int chance);
 	virtual void PatternStep();
 public:
-	ModeRainbowGlitter(LEDCore *c, enum_mode m) : Pattern(c, m) {}
+	ModeRainbowGlitter(LEDCore *c, enum_mode m) : Pattern(c, m), initHue(0) {}
 	virtual ~ModeRainbowGlitter() = default;
 };
 
@@ -195,7 +213,7 @@ public:
 class ModeStars : public Pattern {
 protected:
 	const double k_delay{ 0.1 };
-	std::vector<bool> barr;
+	std::bitset<NUM_LEDS> stars;
 	size_t random_led;
 	int star_count;
 	bool filling;
@@ -204,7 +222,7 @@ protected:
 	virtual void PatternStep();
 public:
 	ModeStars(LEDCore *c, enum_mode m) 
-	    : Pattern(c, m), barr(NUM_LEDS),
+	    : Pattern(c, m), stars(),
 	      random_led(0), star_count(0), filling(true) {}
 	virtual ~ModeStars() = default;
 };
