@@ -114,6 +114,8 @@ void FdServer::Handle(bool r, [[maybe_unused]] bool w)
 	if(sd == -1) { return; }
 	TcpSession *p = new TcpSession(this, sd);
 	fdsel->Add(p);
+	BOOST_LOG_TRIVIAL(info) << "The remote user was connected, IP: " 
+	                        << "127.0.0.1";
 }
 
 void FdServer::RemoveTcpSession(TcpSession *s)
@@ -121,6 +123,8 @@ void FdServer::RemoveTcpSession(TcpSession *s)
 	fdsel->Remove(s); 
 	close(s->GetFd());
 	delete s;
+	BOOST_LOG_TRIVIAL(info) << "The remote user has disconnected, IP: " 
+	                        << "127.0.0.1";
 }
 
 ////////////////////////////////////////////////////////////////////////////////

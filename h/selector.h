@@ -1,6 +1,8 @@
 #ifndef SELECTOR_AK_H
 #define SELECTOR_AK_H
 
+#define BOOST_LOG_DYN_LINK
+
 ////////////////////////////////////////////////////////////////////////////////
 
 /***
@@ -13,6 +15,8 @@
 #include "common.h"
 #include "led_core.h"
 #include "oofl.h"
+
+#include <boost/log/trivial.hpp>
 
 #include <array>
 

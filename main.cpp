@@ -1,3 +1,5 @@
+#define BOOST_LOG_DYN_LINK
+
 ////////////////////////////////////////////////////////////////////////////////
 
 /*** 
@@ -11,6 +13,7 @@
 
 #include <iostream>
 #include <X11/Xlib.h>
+#include <boost/log/trivial.hpp>
 #include "led_gui.h"
 #include "led_core.h"
 #include "process_exception.h"
@@ -35,7 +38,7 @@ int main(int argc, char *argv[])
 
 ////////////////////////////////////////////////////////////////////////////////
 if(!display) {
-    std::cerr << "Can't open display, exit(1)" << std::endl;
+    BOOST_LOG_TRIVIAL(fatal) << "Can't open display, exit(1)";
    	std::exit(1); 
 }
 ////////////////////////////////////////////////////////////////////////////////
@@ -48,12 +51,12 @@ if(!display) {
 
 ////////////////////////////////////////////////////////////////////////////////
 if(!server) {
-    std::cerr << "Error of starting TCP-server, working without network..."
-              << std::endl;
+     BOOST_LOG_TRIVIAL(error)
+     	<< "Error of starting TCP-server, working without network...";
 } 
 else {
-	std::cerr << "TCP-server is running on port: " << TCP_LISTEN_PORT 
-	          << std::endl; 
+	BOOST_LOG_TRIVIAL(info) << "TCP-server is running on port: " 
+	                        << TCP_LISTEN_PORT;
 }
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -69,7 +72,7 @@ else {
     }
 
 ////////////////////////////////////////////////////////////////////////////////
-std::cerr << "Shutdown, exit(0)" << std::endl;
+BOOST_LOG_TRIVIAL(info) << "Shutdown, exit(0)";
 ////////////////////////////////////////////////////////////////////////////////
 
     return 0;

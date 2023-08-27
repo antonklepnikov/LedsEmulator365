@@ -1,4 +1,4 @@
-CXXFLAGS = -ggdb -pedantic-errors -Wall -Weffc++ -Wextra -Wsign-conversion -Werror -std=c++20 -I ./h
+CXXFLAGS = -ggdb -pedantic-errors -Wall -Weffc++ -Wextra -Wsign-conversion -Werror -std=c++20 -I ./h -I /usr/local/include -lboost_log
 
 
 fastled_port.o: fastled_port.cpp ./h/fastled_port.h
