@@ -48,31 +48,24 @@ if(!display) {
     	fl_open_display(display);
         auto displayFd { ConnectionNumber(display) };    
         
-        auto fdSel{ new FdSelector };
-        auto core{ new LEDCore };
+        FdSelector selector;
+        LEDCore core;
         
-        SrvLogger log(SERVER_LOG_FILE);
+        SrvLogger logger(SERVER_LOG_FILE);
         
-        auto server{ FdServer::Start(displayFd, fdSel, core, &log, 
-                                     TCP_LISTEN_PORT) };
+        FdServer server{ FdServer::Start(displayFd, &selector, &core, &logger, 
+                                         TCP_LISTEN_PORT) };
 
 ////////////////////////////////////////////////////////////////////////////////
-if(!server) {
-    std::clog << "Error of starting TCP-server (LE365 working without network)"
-	          << std::endl;
-} 
-else {
-	std::clog << "TCP-server is running on port: " << TCP_LISTEN_PORT
-	          << std::endl;
-}
+std::clog << "TCP-server is running on port: " << TCP_LISTEN_PORT << std::endl;
 ////////////////////////////////////////////////////////////////////////////////
 
-        auto loop { new MainLoop(server, core) };
-        auto window{ Window365::Make(core, loop) };
+        MainLoop loop(&server, &core);
+        auto window{ Window365::Make(&core, &loop) };
         [[maybe_unused]] auto keyHandler{ new KeyHandler() };
-        KeyHandler::cpi.Init(core);
+        KeyHandler::cpi.Init(&core);
         window->show(argc, argv);
-        loop->Run();
+        loop.Run();
     } catch(...) {
         exceptPtr = std::current_exception();
         return process_exception(exceptPtr);

@@ -101,8 +101,8 @@ private:
 	FdServer(int fdDisp, FdSelector *aFds, 
 	         LEDCore *cp, SrvLogger *sl, int fdSrv);
 public:
-	static FdServer* Start(int display, FdSelector *fsl, LEDCore *cp, 
-	                       SrvLogger *sl, int port);
+	static FdServer Start(int display, FdSelector *fsl, LEDCore *cp, 
+	                      SrvLogger *sl, int port);
 	virtual ~FdServer();
 	virtual void Handle(bool r, bool w);
 	void RemoveTcpSession(TcpSession *s);
