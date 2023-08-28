@@ -6,6 +6,8 @@
 /// CONSTANTS //////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+/// NUMERIC CONSTANTS //////////////////////////////////////////////////////////
+
 enum {
 
 	SELECT_DELAY_SEC = 0,
@@ -40,8 +42,34 @@ enum {
 };
 
 
+/// TEXT CONSTANTS /////////////////////////////////////////////////////////////
+
+static const char SERVER_WELCOME[] =
+	"SRV: Hello, you are connected to LEDCore!\nCLI: ";
+static const char SERVER_NEW_LINE[] = "\nCLI: ";
+
+static const char CLIENT_EXIT[] = "exit";
+static const char CLIENT_MODE_1[] = "m1";
+static const char CLIENT_MODE_2[] = "m2";
+static const char CLIENT_MODE_3[] = "m3";
+static const char CLIENT_MODE_4[] = "m4";
+static const char CLIENT_MODE_5[] = "m5";
+static const char CLIENT_MODE_6[] = "m6";
+static const char CLIENT_MODE_7[] = "m7";
+static const char CLIENT_MODE_8[] = "m8";
+static const char CLIENT_MODE_9[] = "m9";
+static const char CLIENT_UP[] = "up";
+static const char CLIENT_DOWN[] = "down";
+static const char CLIENT_RIGHT[] = "right";
+static const char CLIENT_LEFT[] = "left";
+static const char CLIENT_OK[] = "ok";
+
+
+static const char SERVER_LOG_FILE[] = "le365_tcp.log";
+
+
 ////////////////////////////////////////////////////////////////////////////////
-/// USER TYPES /////////////////////////////////////////////////////////////////
+/// USER-DEFINED TYPES /////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
 enum enum_mode {

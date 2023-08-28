@@ -2,13 +2,13 @@
 
 /*** 
      IMPLEMENTATION:
-     Managing modes 
-                   ***/
+     TCP-server
+                ***/
 
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "selector.h"
+#include "tcp_srv.h"
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -72,9 +72,11 @@ void FdSelector::FdSelect()
 	}
 }
 
+
 ////////////////////////////////////////////////////////////////////////////////
 
-FdServer* FdServer::Start(int display, FdSelector *fsl, LEDCore *cp, int port)
+FdServer* FdServer::Start(int display, FdSelector *fsl, LEDCore *cp,
+                          SrvLogger *sl, int port)
 {
 	int ls{ socket(AF_INET, SOCK_STREAM, 0) };
 	if(ls == -1) { return 0; }
@@ -88,11 +90,13 @@ FdServer* FdServer::Start(int display, FdSelector *fsl, LEDCore *cp, int port)
 	if(res == -1) { return 0; }
 	res = listen(ls, TCP_QLEN_FOR_LISTEN);
 	if(res == -1) { return 0; }
-	return new FdServer(display, fsl, cp, ls);
+	return new FdServer(display, fsl, cp, sl, ls);
 }
 
-FdServer::FdServer(int fdDisp, FdSelector *fsl, LEDCore *cp, int fdSrv) 
-	: FdHandler(fdSrv, true), disp(fdDisp), fdsel(fsl), cpi(), serverStop(false)
+FdServer::FdServer(int fdDisp, FdSelector *fsl, 
+                   LEDCore *cp, SrvLogger *sl, int fdSrv) 
+	                    : FdHandler(fdSrv, true), disp(fdDisp), 
+	                      fdsel(fsl), slg(sl), cpi(), serverStop(false)
 { 
 	cpi.Init(cp);
 	fdsel->Add(&disp);
@@ -114,8 +118,7 @@ void FdServer::Handle(bool r, [[maybe_unused]] bool w)
 	if(sd == -1) { return; }
 	TcpSession *p = new TcpSession(this, sd);
 	fdsel->Add(p);
-	BOOST_LOG_TRIVIAL(info) << "The remote user was connected, IP: " 
-	                        << "127.0.0.1";
+	slg->WriteLog("The remote user was connected, IP: 127.0.0.1");
 }
 
 void FdServer::RemoveTcpSession(TcpSession *s)
@@ -123,9 +126,9 @@ void FdServer::RemoveTcpSession(TcpSession *s)
 	fdsel->Remove(s); 
 	close(s->GetFd());
 	delete s;
-	BOOST_LOG_TRIVIAL(info) << "The remote user has disconnected, IP: " 
-	                        << "127.0.0.1";
+	slg->WriteLog("The remote user has disconnected, IP: 127.0.0.1");
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -285,36 +288,6 @@ void DisplaySession::Handle(bool r, [[maybe_unused]] bool w)
 {
 	if(!r) { return; }
 	if(!Fl::check()) { windowClosed = true; }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-void MainSelector::MainStep()
-{
-    switch(core->GetMode()) {
-        case mode_1:        rainbow.Step();        break;
-        case mode_2:        rainbowMeteor.Step();  break;
-        case mode_3:        rainbowGlitter.Step(); break;
-        case mode_4:        stars.Step();          break;
-        case mode_5:        runningDots.Step();    break;
-        case mode_6:        pacifica.Step();       break;
-        case mode_7:        rgb.Step();            break;
-        case mode_8:        cmyk.Step();           break;
-        case mode_9:        white.Step();          break;
-        case mode_stop:     stop.Step();           break;        
-        case mode_null:
-        default:                                   break;
-    }
-}
-
-void MainSelector::Run()
-{   
-    core->FltkStep();
-    while(core->CoreRun() && tcps->ServerReady()) {
-        tcps->ServerStep();
-        MainStep();
-    }
 }
 
 

@@ -13,7 +13,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Window365 * Window365::Make(LEDCore *core, MainSelector *sel)
+Window365 * Window365::Make(LEDCore *core, MainLoop *ml)
 {
     static const char* buttons_lbl[] = { "1", "2", "3", "4", "5",
                                          "6", "7", "8", "9" };
@@ -50,26 +50,26 @@ Window365 * Window365::Make(LEDCore *core, MainSelector *sel)
     for(i = 0; i < NUM_DIG_BUTTONS; ++i) {
         x = (i < 3 ? i : (i % 3)) * shift + 2 * BREAKUP;
         y = ((i / 3) * shift + BREAKUP) + (rows * shift + 2 * BREAKUP);
-        sel->buttons.at(static_cast<size_t>(i)) = 
+        ml->buttons.at(static_cast<size_t>(i)) = 
             new ModeButton(x, y, buttons_lbl[i], 
                            core, static_cast<enum_mode>(i+1));
     }
     // Control buttons;
     x = w - (2 * ITEM_SIZE + 3 * BREAKUP);
     y = rows * shift + 3 * BREAKUP;
-    sel->buttons.at(static_cast<size_t>(B_UP)) = 
+    ml->buttons.at(static_cast<size_t>(B_UP)) = 
         new BrightUpButton (x, y, "@8->", core);
     x -= shift; y += shift;
-    sel->buttons.at(static_cast<size_t>(B_LEFT)) = 
+    ml->buttons.at(static_cast<size_t>(B_LEFT)) = 
         new BrowseLeftButton (x, y, "@undo", core);
     x += shift;
-    sel->buttons.at(static_cast<size_t>(B_OK)) = 
+    ml->buttons.at(static_cast<size_t>(B_OK)) = 
         new OkButton (x, y, "@-2circle", core);
     x += shift;
-    sel->buttons.at(static_cast<size_t>(B_RIGHT)) = 
+    ml->buttons.at(static_cast<size_t>(B_RIGHT)) = 
         new BrowseRightButton (x, y, "@redo", core);
     x -= shift; y += shift;
-    sel->buttons.at(static_cast<size_t>(B_DOWN)) = 
+    ml->buttons.at(static_cast<size_t>(B_DOWN)) = 
         new BrightDownButton (x, y, "@2->", core);
     win->end();
     return win;

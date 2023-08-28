@@ -1,5 +1,3 @@
-#define BOOST_LOG_DYN_LINK
-
 ////////////////////////////////////////////////////////////////////////////////
 
 /*** 
@@ -12,10 +10,14 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #include <iostream>
+
 #include <X11/Xlib.h>
-#include <boost/log/trivial.hpp>
-#include "led_gui.h"
+
+#include "common.h"
 #include "led_core.h"
+#include "tcp_srv.h"
+#include "led_gui.h"
+#include "main_loop.h"
 #include "process_exception.h"
 
 
@@ -38,41 +40,46 @@ int main(int argc, char *argv[])
 
 ////////////////////////////////////////////////////////////////////////////////
 if(!display) {
-    BOOST_LOG_TRIVIAL(fatal) << "Can't open display, exit(1)";
+    std::cerr << "Can't open display, exit(1)" << std::endl;
    	std::exit(1); 
 }
 ////////////////////////////////////////////////////////////////////////////////
 
     	fl_open_display(display);
         auto displayFd { ConnectionNumber(display) };    
-        auto core{ new LEDCore };
+        
         auto fdSel{ new FdSelector };
-        auto server{ FdServer::Start(displayFd, fdSel, core, TCP_LISTEN_PORT) };
+        auto core{ new LEDCore };
+        
+        SrvLogger log(SERVER_LOG_FILE);
+        
+        auto server{ FdServer::Start(displayFd, fdSel, core, &log, 
+                                     TCP_LISTEN_PORT) };
 
 ////////////////////////////////////////////////////////////////////////////////
 if(!server) {
-     BOOST_LOG_TRIVIAL(error)
-     	<< "Error of starting TCP-server, working without network...";
+    std::clog << "Error of starting TCP-server (LE365 working without network)"
+	          << std::endl;
 } 
 else {
-	BOOST_LOG_TRIVIAL(info) << "TCP-server is running on port: " 
-	                        << TCP_LISTEN_PORT;
+	std::clog << "TCP-server is running on port: " << TCP_LISTEN_PORT
+	          << std::endl;
 }
 ////////////////////////////////////////////////////////////////////////////////
 
-        auto selector { new MainSelector(server, core) };
-        auto window{ Window365::Make(core, selector) };
+        auto loop { new MainLoop(server, core) };
+        auto window{ Window365::Make(core, loop) };
         [[maybe_unused]] auto keyHandler{ new KeyHandler() };
         KeyHandler::cpi.Init(core);
         window->show(argc, argv);
-        selector->Run();
+        loop->Run();
     } catch(...) {
         exceptPtr = std::current_exception();
         return process_exception(exceptPtr);
     }
 
 ////////////////////////////////////////////////////////////////////////////////
-BOOST_LOG_TRIVIAL(info) << "Shutdown, exit(0)";
+std::clog << "Shutdown, exit(0)" << std::endl;
 ////////////////////////////////////////////////////////////////////////////////
 
     return 0;

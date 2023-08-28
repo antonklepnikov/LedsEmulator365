@@ -14,7 +14,7 @@
 #include "common.h"
 #include "led_core.h"
 #include "oofl.h"
-#include "selector.h"
+#include "main_loop.h"
 
 #include <FL/Fl.H>
 #include <FL/platform.H>
@@ -111,7 +111,7 @@ private:
     Window365(int w, int h) :
         OOFLWindow(0, 0, w, h, "< LEDs emulator 365 >") {}
 public:
-    static Window365 * Make(LEDCore *core, MainSelector *sel); // led_gui.cpp
+    static Window365 * Make(LEDCore *core, MainLoop *ml); // led_gui.cpp
 };
 
 

@@ -1,10 +1,8 @@
 #define BOOST_LOG_DYN_LINK
 
 
-#include <boost/move/utility_core.hpp>
 #include <boost/log/sources/logger.hpp>
 #include <boost/log/sources/record_ostream.hpp>
-#include <boost/log/sources/global_logger_storage.hpp>
 #include <boost/log/expressions.hpp>
 #include <boost/log/support/date_time.hpp>
 #include <boost/log/utility/setup/console.hpp>
@@ -13,45 +11,38 @@
 
 namespace logging = boost::log;
 namespace src = boost::log::sources;
-namespace keywords = boost::log::keywords;
 namespace expr = boost::log::expressions;
 
-BOOST_LOG_INLINE_GLOBAL_LOGGER_DEFAULT(my_logger, src::logger_mt)
+static const char SERVER_LOG_FILE_NAME[] = "le365_tcp.log";
 
-void logging_function1()
+bool logging_function(const char *text)
 {
     src::logger lg;
 
-//[ example_tutorial_logging_manual_logging
     logging::record rec = lg.open_record();
     if (rec)
     {
         logging::record_ostream strm(rec);
-        strm << "Hello, World!";
+        strm << text;
         strm.flush();
         lg.push_record(boost::move(rec));
-    }
-//]
+        return true;
+    } 
+    else { return false; }
 }
 
-void logging_function2()
-{
-    src::logger_mt& lg = my_logger::get();
-    BOOST_LOG(lg) << "Greetings from the global logger!";
-}
 
 int main(int, char*[])
 {
 	logging::formatter formatter = expr::stream
-            << expr::format_date_time< boost::posix_time::ptime >("TimeStamp", "%Y-%m-%d / %H:%M:%S.%f") << " -> "
+            << expr::format_date_time< boost::posix_time::ptime >("TimeStamp", "%d-%m-%Y / %H:%M:%S:%f") << " -> "
             << expr::message;
 
-    logging::add_file_log("sample.log")->set_formatter(formatter);
+    logging::add_file_log(SERVER_LOG_FILE_NAME)->set_formatter(formatter);
     logging::add_console_log(std::clog)->set_formatter(formatter);
     logging::add_common_attributes();
 
-    logging_function1();
-    logging_function2();
+    logging_function("Hi, world!");
 
     return 0;
 }
