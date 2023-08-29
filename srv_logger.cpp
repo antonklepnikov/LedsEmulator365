@@ -19,7 +19,8 @@ SrvLogger::SrvLogger(const char *file_name) : lg()
         << expr::format_date_time<bptm::ptime>("TimeStamp", 
                                                "%d-%m-%Y / %H:%M:%S:%f") 
         << " -> " << expr::message;
-    logging::add_file_log(file_name)->set_formatter(formatter);
+    logging::add_file_log(file_name, 
+        logging::keywords::auto_flush = true)->set_formatter(formatter);
     logging::add_console_log(std::clog)->set_formatter(formatter);
     logging::add_common_attributes();
 }

@@ -32,13 +32,14 @@ void MainLoop::ModeStep()
     }
 }
 
-void MainLoop::Run()
+int MainLoop::Run()
 {   
-    core->FltkStep();
+    //core->FltkStep();
     while(core->CoreRun() && tcps->ServerReady()) {
         tcps->ServerStep();
         ModeStep();
     }
+    return 0;
 }
 
 

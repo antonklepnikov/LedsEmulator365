@@ -135,9 +135,9 @@ public:
         	LoadState();
         	PatternStep(); 
         	core->Show();
+        	core->FltkStep();
         	SaveState();
         }
-    	core->FltkStep();
     }
     
     void SaveState();

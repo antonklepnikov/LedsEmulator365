@@ -21,6 +21,8 @@
 #include <netinet/in.h>
 #include <string.h>
 
+#include <exception>
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -122,6 +124,17 @@ public:
     FdServer(const FdServer&) = delete;
     FdServer& operator=(const FdServer&) = delete;	
 };
+
+////////////////////////////////////////////////////////////////////////////////
+
+class FdServerException : public std::exception {
+private:
+    std::string error;
+public:
+    FdServerException(std::string_view er) : error(er) {}
+    const char* what() const noexcept override { return error.c_str(); }
+};
+
 
 ////////////////////////////////////////////////////////////////////////////////
 

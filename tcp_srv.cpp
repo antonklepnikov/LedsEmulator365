@@ -76,10 +76,11 @@ void FdSelector::FdSelect()
 ////////////////////////////////////////////////////////////////////////////////
 
 FdServer FdServer::Start(int display, FdSelector *fsl, LEDCore *cp,
-                          SrvLogger *sl, int port)
+                           SrvLogger *sl, int port)
 {
 	int ls{ socket(AF_INET, SOCK_STREAM, 0) };
-	if(ls == -1) { throw; }
+	if(ls == -1)
+	    throw FdServerException("FdServer start fault in: socket()");
 	int opt { 1 };
 	setsockopt(ls, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 	sockaddr_in addr{};
@@ -87,9 +88,11 @@ FdServer FdServer::Start(int display, FdSelector *fsl, LEDCore *cp,
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	addr.sin_port = htons(port);
 	int res{ bind(ls, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) };
-	if(res == -1) { throw; }
+	if(res == -1)
+	    throw FdServerException("FdServer start fault in: bind()");
 	res = listen(ls, TCP_QLEN_FOR_LISTEN);
-	if(res == -1) { throw; }
+	if(res == -1)
+	    throw FdServerException("FdServer start fault in: listen()");
 	return FdServer(display, fsl, cp, sl, ls);
 }
 
