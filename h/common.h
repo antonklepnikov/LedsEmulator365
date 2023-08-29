@@ -15,7 +15,6 @@ enum {
     
     TCP_LINE_MAX_LENGTH = 1023,
     TCP_QLEN_FOR_LISTEN = 16,
-	TCP_LISTEN_PORT = 7777,
     
     ////////////////////////////////////// Don't change it! ////
     NUM_DIG_BUTTONS = 9,

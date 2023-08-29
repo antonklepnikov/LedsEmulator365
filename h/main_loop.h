@@ -57,7 +57,7 @@ public:
     MainLoop(const MainLoop&) = delete;
     MainLoop& operator=(const MainLoop&) = delete;
     
-    int Run();
+    void Run();
 };
 
 

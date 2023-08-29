@@ -10,6 +10,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #include <iostream>
+#include <sstream>
+#include <string>
 
 #include <X11/Xlib.h>
 
@@ -34,6 +36,14 @@ CorePultInterface KeyHandler::cpi;
 
 int main(int argc, char *argv[])
 {
+    if(argc <= 1) {
+        std::cerr << "Usage: " << argv[0] << " <TCP-server port [1024..49151]>" << std::endl;
+        return 1;
+    }
+    std::stringstream convert{ argv[1] };
+    int port{};
+    if(!(convert >> port) || (port < 1024 || port > 49151)) { port = 1024; }
+    
     std::exception_ptr exceptPtr;    // Object for storing exceptions or nullptr.
     
     auto display { XOpenDisplay(0) };
@@ -46,16 +56,17 @@ int main(int argc, char *argv[])
         
     try {    
         
+        SrvLogger logger(SERVER_LOG_FILE);
+        logger.WriteLog("Logging system sucessfuly started");
+        
         FdSelector selector;
         LEDCore core;
-        
-        SrvLogger logger(SERVER_LOG_FILE);
-        logger.WriteLog("Logging system sucessful started");
 
-        FdServer server{ FdServer::Start(displayFd, &selector, &core, &logger, 
-                                         TCP_LISTEN_PORT) };
-        std::clog << "TCP-server is running on port: " 
-                  << TCP_LISTEN_PORT << std::endl;
+        FdServer server{ FdServer::Start(
+            displayFd, &selector, &core, &logger, port) };
+        std::string runMsg{ "TCP-server is running on port: " };
+        runMsg += std::to_string(port);        
+        logger.WriteLog(runMsg.c_str());
 
         MainLoop loop(&server, &core);
         auto window{ Window365::Make(&core, &loop) };
@@ -63,8 +74,11 @@ int main(int argc, char *argv[])
         [[maybe_unused]] auto keyHandler{ new KeyHandler() };
         KeyHandler::cpi.Init(&core);
     
-        window->show(argc, argv);
-        return loop.Run();
+        window->show();
+        loop.Run();
+        
+        logger.WriteLog("Program shutdown with code: 0");
+        return 0;
     
     } catch(...) {
         exceptPtr = std::current_exception();
