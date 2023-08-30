@@ -19,7 +19,9 @@
 #include <sys/select.h>
 #include <errno.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <string.h>
+#include <string>
 
 #include <exception>
 
@@ -69,6 +71,7 @@ private:
 	char buffer[TCP_LINE_MAX_LENGTH + 1];
 	int bufUsed;
 	bool ignoring;
+	std::string networkDetails{};
 	FdServer *srvMaster;
 	TcpSession(FdServer *am, int fd);
 	virtual ~TcpSession() {}

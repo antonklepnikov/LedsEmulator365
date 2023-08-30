@@ -121,15 +121,22 @@ void FdServer::Handle(bool r, [[maybe_unused]] bool w)
 	if(sd == -1) { return; }
 	TcpSession *p = new TcpSession(this, sd);
 	fdsel->Add(p);
-	slg->WriteLog("The remote user was connected, IP: 127.0.0.1");
+	p->networkDetails = inet_ntoa(addr.sin_addr);
+	p->networkDetails += ":";
+	p->networkDetails += std::to_string(ntohs(addr.sin_port));
+	std::string logMsg{ p->networkDetails };
+	logMsg += " has connected";
+	slg->WriteLog(logMsg.c_str());
 }
 
 void FdServer::RemoveTcpSession(TcpSession *s)
 { 
+	std::string logMsg{ s->networkDetails };
+	logMsg += " has disconnected";
 	fdsel->Remove(s); 
 	close(s->GetFd());
 	delete s;
-	slg->WriteLog("The remote user has disconnected, IP: 127.0.0.1");
+	slg->WriteLog(logMsg.c_str());
 }
 
 
