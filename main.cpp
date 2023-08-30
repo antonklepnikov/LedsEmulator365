@@ -64,8 +64,8 @@ int main(int argc, char *argv[])
 
         FdServer server{ FdServer::Start(
             displayFd, &selector, &core, &logger, port) };
-        std::string runMsg{ "TCP-server is running on port: " };
-        runMsg += std::to_string(port);        
+        std::string runMsg{ "TCP-server is running on port: " + 
+                             std::to_string(port) };    
         logger.WriteLog(runMsg.c_str());
 
         MainLoop loop(&server, &core);

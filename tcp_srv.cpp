@@ -124,23 +124,26 @@ void FdServer::Handle(bool r, [[maybe_unused]] bool w)
 	p->networkDetails = inet_ntoa(addr.sin_addr);
 	p->networkDetails += ":";
 	p->networkDetails += std::to_string(ntohs(addr.sin_port));
-	std::string logMsg{ p->networkDetails };
-	logMsg += " has connected";
+	std::string logMsg{ p->networkDetails + " has connected" };
 	slg->WriteLog(logMsg.c_str());
 }
 
 void FdServer::RemoveTcpSession(TcpSession *s)
 { 
-	std::string logMsg{ s->networkDetails };
-	logMsg += " has disconnected";
+	std::string logMsg{ s->networkDetails + " has disconnected" };
 	fdsel->Remove(s); 
 	close(s->GetFd());
-	delete s;
 	slg->WriteLog(logMsg.c_str());
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
+
+void TcpSession::Halt()
+{
+	master->RemoveTcpSession(this);
+	delete this;
+}
 
 void TcpSession::Say(const char *msg)
 {
@@ -148,7 +151,10 @@ void TcpSession::Say(const char *msg)
 }
 
 TcpSession::TcpSession(FdServer *am, int fd) 
-	: FdHandler(fd, true), bufUsed(0), ignoring(false), srvMaster(am) 
+	: FdHandler(fd, true), bufUsed(0), ignoring(false), master(am), handleMap{{"e", [this]()  { 
+									this->ServerAnswer("Ok, bye");
+									this->Halt();
+								}}}
 { 
 	Say(SERVER_WELCOME); 
 }
@@ -167,19 +173,18 @@ void TcpSession::Handle(bool r, [[maybe_unused]] bool w)
 void TcpSession::ReadAndIgnore()
 {
 	int r = read(GetFd(), buffer, sizeof(buffer));
-	if(r < 1) {
-		srvMaster->RemoveTcpSession(this);
-		return;
-	}
-	for(int i = 0; i < r; ++i) {
-		if(buffer[i] == '\n') { // Stop ignoring.
-			int rest{ r - i - 1 };
-			if(rest > 0) { 
-				memmove(buffer, buffer + i + 1, static_cast<size_t>(rest)); 
+	if(r < 1) { Halt(); } 
+	else {
+		for(int i = 0; i < r; ++i) {
+			if(buffer[i] == '\n') { // Stop ignoring.
+				int rest{ r - i - 1 };
+				if(rest > 0) { 
+					memmove(buffer, buffer + i + 1, static_cast<size_t>(rest)); 
+				}
+				bufUsed = rest;
+				ignoring = false;
+				CheckLines();
 			}
-			bufUsed = rest;
-			ignoring = false;
-			CheckLines();
 		}
 	}
 }
@@ -188,12 +193,11 @@ void TcpSession::ReadAndCheck()
 {
 	int r = read(GetFd(), buffer + bufUsed, 
 	             sizeof(buffer) - static_cast<size_t>(bufUsed));
-	if(r < 1) {
-		srvMaster->RemoveTcpSession(this);
-		return;
-	}
-	bufUsed += r;
-	CheckLines();	
+	if(r < 1) { Halt(); }
+	else {
+		bufUsed += r;
+		CheckLines();
+	}	
 }
 
 void TcpSession::CheckLines()
@@ -217,67 +221,75 @@ void TcpSession::CheckLines()
 
 void TcpSession::ProcessLine(const char *str)
 {
+	std::string opt{ str };
+std::cerr << opt <<"\n";
+	if(handleMap.find(opt) != handleMap.end()) { 	
+std::cerr << "FINDED" << "\n"; }
+else { std::cerr << "HANDLED?!" << "\n"; }
+
+	/*
 	if(!strcmp(str, CLIENT_EXIT)) { 
 		ServerAnswer("Ok, bye"); 
-		srvMaster->RemoveTcpSession(this);
+		Halt();
 	}
 	else if(!strcmp(str, CLIENT_MODE_1)) { 
 		ServerAnswer("Ok, mode_1"); 
-		srvMaster->GUI_Mode(mode_1);
+		master->GUI_Mode(mode_1);
 	}
 	else if(!strcmp(str, CLIENT_MODE_2)) { 
 		ServerAnswer("Ok, mode_2"); 
-		srvMaster->GUI_Mode(mode_2);
+		master->GUI_Mode(mode_2);
 	}
 	else if(!strcmp(str, CLIENT_MODE_3)) { 
 		ServerAnswer("Ok, mode_3"); 
-		srvMaster->GUI_Mode(mode_3);
+		master->GUI_Mode(mode_3);
 	}
 	else if(!strcmp(str, CLIENT_MODE_4)) { 
 		ServerAnswer("Ok, mode_4"); 
-		srvMaster->GUI_Mode(mode_4);
+		master->GUI_Mode(mode_4);
 	}
 	else if(!strcmp(str, CLIENT_MODE_5)) { 
 		ServerAnswer("Ok, mode_5"); 
-		srvMaster->GUI_Mode(mode_5);
+		master->GUI_Mode(mode_5);
 	}
 	else if(!strcmp(str, CLIENT_MODE_6)) { 
 		ServerAnswer("Ok, mode_6"); 
-		srvMaster->GUI_Mode(mode_6);
+		master->GUI_Mode(mode_6);
 	}
 	else if(!strcmp(str, CLIENT_MODE_7)) { 
 		ServerAnswer("Ok, mode_7"); 
-		srvMaster->GUI_Mode(mode_7);
+		master->GUI_Mode(mode_7);
 	}
 	else if(!strcmp(str, CLIENT_MODE_8)) { 
 		ServerAnswer("Ok, mode_8"); 
-		srvMaster->GUI_Mode(mode_8);
+		master->GUI_Mode(mode_8);
 	}
 	else if(!strcmp(str, CLIENT_MODE_9)) { 
 		ServerAnswer("Ok, mode_9"); 
-		srvMaster->GUI_Mode(mode_9);
+		master->GUI_Mode(mode_9);
 	}
 	else if(!strcmp(str, CLIENT_UP)) { 
 		ServerAnswer("Ok, up"); 
-		srvMaster->GUI_Up();
+		master->GUI_Up();
 	}
 	else if(!strcmp(str, CLIENT_DOWN)) { 
 		ServerAnswer("Ok, down"); 
-		srvMaster->GUI_Down();
+		master->GUI_Down();
 	}
 	else if(!strcmp(str, CLIENT_LEFT)) { 
 		ServerAnswer("Ok, left"); 
-		srvMaster->GUI_Left();
+		master->GUI_Left();
 	}
 	else if(!strcmp(str, CLIENT_RIGHT)) { 
 		ServerAnswer("Ok, right"); 
-		srvMaster->GUI_Right();
+		master->GUI_Right();
 	}
 	else if(!strcmp(str, CLIENT_OK)) { 
 		ServerAnswer("Ok, OK"); 
-		srvMaster->GUI_Ok();
+		master->GUI_Ok();
 	}
 	else { ServerAnswer("Bad, command not found"); }
+	*/
 }
 
 void TcpSession::ServerAnswer(const char *str)

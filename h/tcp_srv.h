@@ -21,9 +21,11 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
-#include <string>
 
+#include <string>
 #include <exception>
+#include <functional>
+#include <unordered_map>
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -64,6 +66,10 @@ public:
 ////////////////////////////////////////////////////////////////////////////////
 
 class FdServer;
+class TcpSession;
+
+typedef std::function<void()> HandleFn;
+
 
 class TcpSession : private FdHandler {
 friend class FdServer;
@@ -72,10 +78,13 @@ private:
 	int bufUsed;
 	bool ignoring;
 	std::string networkDetails{};
-	FdServer *srvMaster;
+	FdServer *master;
+	std::unordered_map<std::string, HandleFn> handleMap;
+
 	TcpSession(FdServer *am, int fd);
 	virtual ~TcpSession() {}
 	virtual void Handle(bool r, bool w);
+	void Halt();
 	void Say(const char *msg);
 	void ReadAndIgnore();
 	void ReadAndCheck();
