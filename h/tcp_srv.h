@@ -26,6 +26,7 @@
 #include <exception>
 #include <functional>
 #include <unordered_map>
+#include <list>
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -44,44 +45,45 @@ public:
 	virtual bool WantWrite() const { return false; }
 };
 
-class FdSelector {
+class Selector {
 private:
 	FdHandler **fdArray;
 	int fdArrayLen;
 	int maxFd;
 	bool noErr;
 public:
-	FdSelector() : fdArray(0), fdArrayLen(0), maxFd(-1), noErr(true) {}
-	~FdSelector() { if(fdArray) delete[] fdArray; }
+	Selector() : fdArray(0), fdArrayLen(0), maxFd(-1), noErr(true) {}
+	~Selector() { if(fdArray) delete[] fdArray; }
 	void Add(FdHandler *fdh);
 	bool Remove(FdHandler *fdh);
-	bool FdSelReady() const { return noErr; } 
-	void FdSelect();
+	bool SelReady() const { return noErr; } 
+	void Select();
     // No copying and assignment:
-    FdSelector(const FdSelector&) = delete;
-    FdSelector& operator=(const FdSelector&) = delete;	
+    Selector(const Selector&) = delete;
+    Selector& operator=(const Selector&) = delete;	
 };
 
 
 ////////////////////////////////////////////////////////////////////////////////
 
-class FdServer;
+class TcpServer;
 class TcpSession;
 
 typedef std::function<void()> HandleFn;
 
 
 class TcpSession : private FdHandler {
-friend class FdServer;
+friend class TcpServer;
 private:
 	char buffer[TCP_LINE_MAX_LENGTH + 1];
 	int bufUsed;
 	bool ignoring;
 	std::string networkDetails{};
-	FdServer *master;
-	std::unordered_map<std::string, HandleFn> handleMap;
-
-	TcpSession(FdServer *am, int fd);
+	TcpServer *master;
+	CorePultInterface cpi;
+	std::unordered_map<std::string, HandleFn> handleMap; // For branching, 
+	                                                     // see the constructor.
+	TcpSession(TcpServer *am, int fd, LEDCore *cp);
 	virtual ~TcpSession() {}
 	virtual void Handle(bool r, bool w);
 	void Halt();
@@ -97,7 +99,7 @@ private:
 };
 
 class DisplaySession : private FdHandler {
-friend class FdServer;
+friend class TcpServer;
 private:
 	bool windowClosed;
 	DisplaySession(int fd) : FdHandler(fd, false), windowClosed(false) {}
@@ -105,45 +107,39 @@ private:
 	virtual void Handle(bool r, bool w);
 };
 
-class FdServer : public FdHandler {
+class TcpServer : public FdHandler {
 private:
 	DisplaySession disp;
-	FdSelector *fdsel;
+	Selector *sel;
 	SrvLogger *slg;
-	CorePultInterface cpi;
+	LEDCore *lcp;
+	std::list<TcpSession*> garblist;
 	bool serverStop;
-	FdServer(int fdDisp, FdSelector *aFds, 
-	         LEDCore *cp, SrvLogger *sl, int fdSrv);
+	TcpServer(int fdDisp, Selector *aFds, 
+	          LEDCore *cp, SrvLogger *sl, int fdSrv);
+    void GarbCollect();
 public:
-	static FdServer Start(int display, FdSelector *fsl, LEDCore *cp, 
-	                      SrvLogger *sl, int port);
-	virtual ~FdServer();
+	static TcpServer Start(int display, Selector *sp, LEDCore *cp, 
+	                       SrvLogger *sl, int port);
+	virtual ~TcpServer();
 	virtual void Handle(bool r, bool w);
 	void RemoveTcpSession(TcpSession *s);
-	void ServerStep() { fdsel->FdSelect(); }
+	void ServerStep();
 	bool ServerReady() const { return (!disp.windowClosed && 
 	                                   !serverStop &&
-	                                   fdsel->FdSelReady()); }
-	
-	void GUI_Mode(enum_mode m) 	{	cpi.Mode(m);	}
-	void GUI_Ok()				{	cpi.Ok();		}
-	void GUI_Up() 				{	cpi.Up();		}
-	void GUI_Down()				{	cpi.Down();		}
-	void GUI_Left() 			{	cpi.Left();		}
-	void GUI_Right() 			{	cpi.Right();	}
-	
+	                                   sel->SelReady()); }
 	// No copying and assignment:
-    FdServer(const FdServer&) = delete;
-    FdServer& operator=(const FdServer&) = delete;	
+    TcpServer(const TcpServer&) = delete;
+    TcpServer& operator=(const TcpServer&) = delete;	
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 
-class FdServerException : public std::exception {
+class TcpServerException : public std::exception {
 private:
     std::string error;
 public:
-    FdServerException(std::string_view er) : error(er) {}
+    TcpServerException(std::string_view er) : error(er) {}
     const char* what() const noexcept override { return error.c_str(); }
 };
 

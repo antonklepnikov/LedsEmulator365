@@ -27,7 +27,7 @@
 class MainLoop {
     friend class Window365;
 private:
-    FdServer *tcps;
+    TcpServer *srv;
     LEDCore *core;
     
     std::array<OOFLButton*, NUM_ALL_BUTTONS> buttons;
@@ -46,12 +46,12 @@ private:
     void ModeStep();
 
 public:
-    MainLoop(FdServer *s, LEDCore *c) 
-    	: tcps(s), core(c), buttons(),
-    	  rainbow(c, mode_1), rainbowMeteor(c, mode_2), 
-    	  rainbowGlitter(c, mode_3), stars(c, mode_4), runningDots(c, mode_5), 
-    	  pacifica(c, mode_6), rgb(c, mode_7), cmyk(c, mode_8), 
-    	  white(c, mode_9), stop(c, mode_stop) {}
+    MainLoop(TcpServer *sp, LEDCore *cp) 
+    	: srv(sp), core(cp), buttons(),
+    	  rainbow(cp, mode_1), rainbowMeteor(cp, mode_2), 
+    	  rainbowGlitter(cp, mode_3), stars(cp, mode_4), runningDots(cp, mode_5), 
+    	  pacifica(cp, mode_6), rgb(cp, mode_7), cmyk(cp, mode_8), 
+    	  white(cp, mode_9), stop(cp, mode_stop) {}
 
     // No copying and assignment:
     MainLoop(const MainLoop&) = delete;

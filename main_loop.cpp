@@ -35,8 +35,8 @@ void MainLoop::ModeStep()
 void MainLoop::Run()
 {   
     core->FltkStep();
-    while(core->CoreRun() && tcps->ServerReady()) {
-        tcps->ServerStep();
+    while(core->CoreRun() && srv->ServerReady()) {
+        srv->ServerStep();
         ModeStep();
     }
 }

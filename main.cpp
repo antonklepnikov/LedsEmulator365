@@ -37,14 +37,15 @@ CorePultInterface KeyHandler::cpi;
 int main(int argc, char *argv[])
 {
     if(argc <= 1) {
-        std::cerr << "Usage: " << argv[0] << " <TCP-server port [1024..49151]>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <TCP-server port [1024..49151]>" 
+                  << std::endl;
         return 1;
     }
     std::stringstream convert{ argv[1] };
     int port{};
     if(!(convert >> port) || (port < 1024 || port > 49151)) { port = 1024; }
     
-    std::exception_ptr exceptPtr;    // Object for storing exceptions or nullptr.
+    std::exception_ptr exceptPtr; // Object for storing exceptions or nullptr.
     
     auto display { XOpenDisplay(0) };
     if(!display) {
@@ -57,16 +58,18 @@ int main(int argc, char *argv[])
     try {    
         
         SrvLogger logger(SERVER_LOG_FILE);
-        logger.WriteLog("Logging system sucessfuly started");
+        std::string logMsg{ "Logs are recorded in: " };
+        logMsg += SERVER_LOG_FILE;
+        logger.WriteLog(logMsg.c_str());
         
-        FdSelector selector;
+        Selector selector;
         LEDCore core;
 
-        FdServer server{ FdServer::Start(
-            displayFd, &selector, &core, &logger, port) };
-        std::string runMsg{ "TCP-server is running on port: " + 
+        TcpServer server{ TcpServer::Start(
+                            displayFd, &selector, &core, &logger, port) };
+        std::string srvMsg{ "TCP-server listens port: " + 
                              std::to_string(port) };    
-        logger.WriteLog(runMsg.c_str());
+        logger.WriteLog(srvMsg.c_str());
 
         MainLoop loop(&server, &core);
         auto window{ Window365::Make(&core, &loop) };

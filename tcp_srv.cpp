@@ -14,7 +14,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void FdSelector::Add(FdHandler *fdh)
+void Selector::Add(FdHandler *fdh)
 {
 	int i{};
 	int fd = fdh->GetFd();
@@ -35,7 +35,7 @@ void FdSelector::Add(FdHandler *fdh)
 	fdArray[fd] = fdh;
 }
 
-bool FdSelector::Remove(FdHandler *fdh)
+bool Selector::Remove(FdHandler *fdh)
 {
 	int fd{ fdh->GetFd() };
 	if(fd >= fdArrayLen || fdArray[fd] != fdh) { return false; }
@@ -44,7 +44,7 @@ bool FdSelector::Remove(FdHandler *fdh)
 	return true;
 }
 
-void FdSelector::FdSelect()
+void Selector::Select()
 {
 	int i{};
 	fd_set rds;
@@ -75,12 +75,12 @@ void FdSelector::FdSelect()
 
 ////////////////////////////////////////////////////////////////////////////////
 
-FdServer FdServer::Start(int display, FdSelector *fsl, LEDCore *cp,
-                           SrvLogger *sl, int port)
+TcpServer TcpServer::Start(int display, Selector *sel, LEDCore *cp,
+                           SrvLogger *slg, int port)
 {
 	int ls{ socket(AF_INET, SOCK_STREAM, 0) };
 	if(ls == -1)
-	    throw FdServerException("FdServer start fault in: socket()");
+	    throw TcpServerException("TcpServer start fault in: socket()");
 	int opt { 1 };
 	setsockopt(ls, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 	sockaddr_in addr{};
@@ -89,38 +89,38 @@ FdServer FdServer::Start(int display, FdSelector *fsl, LEDCore *cp,
 	addr.sin_port = htons(port);
 	int res{ bind(ls, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) };
 	if(res == -1)
-	    throw FdServerException("FdServer start fault in: bind()");
+	    throw TcpServerException("TcpServer start fault in: bind()");
 	res = listen(ls, TCP_QLEN_FOR_LISTEN);
 	if(res == -1)
-	    throw FdServerException("FdServer start fault in: listen()");
-	return FdServer(display, fsl, cp, sl, ls);
+	    throw TcpServerException("TcpServer start fault in: listen()");
+	return TcpServer(display, sel, cp, slg, ls);
 }
 
-FdServer::FdServer(int fdDisp, FdSelector *fsl, 
-                   LEDCore *cp, SrvLogger *sl, int fdSrv) 
-	                    : FdHandler(fdSrv, true), disp(fdDisp), 
-	                      fdsel(fsl), slg(sl), cpi(), serverStop(false)
+TcpServer::TcpServer(int fdDisp, Selector *asl, 
+                     LEDCore *cp, SrvLogger *alg, int fdSrv) 
+	                      : FdHandler(fdSrv, true), disp(fdDisp), 
+	                        sel(asl), slg(alg), lcp(cp), garblist(), 
+	                        serverStop(false)
 { 
-	cpi.Init(cp);
-	fdsel->Add(&disp);
-	fdsel->Add(this);	
+	asl->Add(&disp);
+	asl->Add(this);	
 }
 
-FdServer::~FdServer()
+TcpServer::~TcpServer()
 { 
-	fdsel->Remove(this);
+	sel->Remove(this);
 	close(GetFd());
 }
 
-void FdServer::Handle(bool r, [[maybe_unused]] bool w)
+void TcpServer::Handle(bool r, [[maybe_unused]] bool w)
 {
 	if(!r) { return; }
 	sockaddr_in addr{};
 	socklen_t len{ sizeof(addr) };
 	int sd{ accept(GetFd(), reinterpret_cast<sockaddr*>(&addr), &len) };
 	if(sd == -1) { return; }
-	TcpSession *p = new TcpSession(this, sd);
-	fdsel->Add(p);
+	TcpSession *p = new TcpSession(this, sd, lcp);
+	sel->Add(p);
 	p->networkDetails = inet_ntoa(addr.sin_addr);
 	p->networkDetails += ":";
 	p->networkDetails += std::to_string(ntohs(addr.sin_port));
@@ -128,12 +128,27 @@ void FdServer::Handle(bool r, [[maybe_unused]] bool w)
 	slg->WriteLog(logMsg.c_str());
 }
 
-void FdServer::RemoveTcpSession(TcpSession *s)
+void TcpServer::RemoveTcpSession(TcpSession *s)
 { 
-	std::string logMsg{ s->networkDetails + " has disconnected" };
-	fdsel->Remove(s); 
+	std::string logMsg{ s->networkDetails + " has disconnected" }; 
 	close(s->GetFd());
+	garblist.push_back(s);
+	sel->Remove(s);
 	slg->WriteLog(logMsg.c_str());
+}
+
+void TcpServer::GarbCollect()
+{
+     if(!garblist.empty()) { 
+        for(auto p : garblist) { delete p; }
+        garblist.clear();
+    }
+}
+
+void TcpServer::ServerStep()
+{
+     sel->Select();
+     GarbCollect();
 }
 
 
@@ -142,7 +157,6 @@ void FdServer::RemoveTcpSession(TcpSession *s)
 void TcpSession::Halt()
 {
 	master->RemoveTcpSession(this);
-	delete this;
 }
 
 void TcpSession::Say(const char *msg)
@@ -150,12 +164,41 @@ void TcpSession::Say(const char *msg)
 	write(GetFd(), msg, strlen(msg));
 }
 
-TcpSession::TcpSession(FdServer *am, int fd) 
-	: FdHandler(fd, true), bufUsed(0), ignoring(false), master(am), handleMap{{"e", [this]()  { 
-									this->ServerAnswer("Ok, bye");
-									this->Halt();
-								}}}
+TcpSession::TcpSession(TcpServer *am, int fd, LEDCore *cp) 
+	: FdHandler(fd, true), bufUsed(0), ignoring(false), master(am), cpi(),
+        handleMap{{ CLIENT_EXIT,    [this]() { this->ServerAnswer("Bye!");      
+                                               this->Halt(); }},
+                  { CLIENT_MODE_1,  [this]() { this->ServerAnswer("Mode=1");
+                                               this->cpi.Mode(mode_1); }},
+                  { CLIENT_MODE_2,  [this]() { this->ServerAnswer("Mode=2");
+                                               this->cpi.Mode(mode_2); }},
+                  { CLIENT_MODE_3,  [this]() { this->ServerAnswer("Mode=3");
+                                               this->cpi.Mode(mode_3); }},
+                  { CLIENT_MODE_4,  [this]() { this->ServerAnswer("Mode=4");
+                                               this->cpi.Mode(mode_4); }},
+                  { CLIENT_MODE_5,  [this]() { this->ServerAnswer("Mode=5");
+                                               this->cpi.Mode(mode_5); }},
+                  { CLIENT_MODE_6,  [this]() { this->ServerAnswer("Mode=6");    
+                                               this->cpi.Mode(mode_6); }},
+                  { CLIENT_MODE_7,  [this]() { this->ServerAnswer("Mode=7");
+                                               this->cpi.Mode(mode_7); }},
+                  { CLIENT_MODE_8,  [this]() { this->ServerAnswer("Mode=8");
+                                               this->cpi.Mode(mode_8); }},
+                  { CLIENT_MODE_9,  [this]() { this->ServerAnswer("Mode=9");
+                                               this->cpi.Mode(mode_9); }},
+                  { CLIENT_UP,      [this]() { this->ServerAnswer("Up");
+                                               this->cpi.Up(); }},
+                  { CLIENT_DOWN,    [this]() { this->ServerAnswer("Down");   
+                                               this->cpi.Down(); }},
+                  { CLIENT_RIGHT,   [this]() { this->ServerAnswer("Right");     
+                                               this->cpi.Right(); }},
+                  { CLIENT_LEFT,    [this]() { this->ServerAnswer("Left");      
+                                               this->cpi.Left(); }},
+                  { CLIENT_OK,      [this]() { this->ServerAnswer("Ok");
+                                               this->cpi.Ok(); }}
+                 }
 { 
+	cpi.Init(cp);
 	Say(SERVER_WELCOME); 
 }
 
@@ -221,75 +264,11 @@ void TcpSession::CheckLines()
 
 void TcpSession::ProcessLine(const char *str)
 {
-	std::string opt{ str };
-std::cerr << opt <<"\n";
-	if(handleMap.find(opt) != handleMap.end()) { 	
-std::cerr << "FINDED" << "\n"; }
-else { std::cerr << "HANDLED?!" << "\n"; }
-
-	/*
-	if(!strcmp(str, CLIENT_EXIT)) { 
-		ServerAnswer("Ok, bye"); 
-		Halt();
+	if(auto f{ handleMap.find(str) }; f != handleMap.end()) { 
+	    f->second(); 
+	} else { 
+	    ServerAnswer("Unrecognized command");
 	}
-	else if(!strcmp(str, CLIENT_MODE_1)) { 
-		ServerAnswer("Ok, mode_1"); 
-		master->GUI_Mode(mode_1);
-	}
-	else if(!strcmp(str, CLIENT_MODE_2)) { 
-		ServerAnswer("Ok, mode_2"); 
-		master->GUI_Mode(mode_2);
-	}
-	else if(!strcmp(str, CLIENT_MODE_3)) { 
-		ServerAnswer("Ok, mode_3"); 
-		master->GUI_Mode(mode_3);
-	}
-	else if(!strcmp(str, CLIENT_MODE_4)) { 
-		ServerAnswer("Ok, mode_4"); 
-		master->GUI_Mode(mode_4);
-	}
-	else if(!strcmp(str, CLIENT_MODE_5)) { 
-		ServerAnswer("Ok, mode_5"); 
-		master->GUI_Mode(mode_5);
-	}
-	else if(!strcmp(str, CLIENT_MODE_6)) { 
-		ServerAnswer("Ok, mode_6"); 
-		master->GUI_Mode(mode_6);
-	}
-	else if(!strcmp(str, CLIENT_MODE_7)) { 
-		ServerAnswer("Ok, mode_7"); 
-		master->GUI_Mode(mode_7);
-	}
-	else if(!strcmp(str, CLIENT_MODE_8)) { 
-		ServerAnswer("Ok, mode_8"); 
-		master->GUI_Mode(mode_8);
-	}
-	else if(!strcmp(str, CLIENT_MODE_9)) { 
-		ServerAnswer("Ok, mode_9"); 
-		master->GUI_Mode(mode_9);
-	}
-	else if(!strcmp(str, CLIENT_UP)) { 
-		ServerAnswer("Ok, up"); 
-		master->GUI_Up();
-	}
-	else if(!strcmp(str, CLIENT_DOWN)) { 
-		ServerAnswer("Ok, down"); 
-		master->GUI_Down();
-	}
-	else if(!strcmp(str, CLIENT_LEFT)) { 
-		ServerAnswer("Ok, left"); 
-		master->GUI_Left();
-	}
-	else if(!strcmp(str, CLIENT_RIGHT)) { 
-		ServerAnswer("Ok, right"); 
-		master->GUI_Right();
-	}
-	else if(!strcmp(str, CLIENT_OK)) { 
-		ServerAnswer("Ok, OK"); 
-		master->GUI_Ok();
-	}
-	else { ServerAnswer("Bad, command not found"); }
-	*/
 }
 
 void TcpSession::ServerAnswer(const char *str)
