@@ -25,7 +25,7 @@ main_loop.o: main_loop.cpp ./h/main_loop.h ./h/common.h ./h/fastled_port.h ./h/l
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 
-process_exception.o: process_exception.cpp ./h/process_exception.h
+process_exception.o: process_exception.cpp ./h/process_exception.h ./h/tcp_srv.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 

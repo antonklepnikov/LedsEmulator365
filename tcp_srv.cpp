@@ -40,7 +40,7 @@ bool Selector::Remove(FdHandler *fdh)
 	int fd{ fdh->GetFd() };
 	if(fd >= fdArrayLen || fdArray[fd] != fdh) { return false; }
 	fdArray[fd] = nullptr;
-	if(fd == maxFd) { while(maxFd >= 0 && !fdArray[maxFd]) { -- maxFd; } }
+	if(fd == maxFd) { while(maxFd >= 0 && !fdArray[maxFd]) { --maxFd; } }
 	return true;
 }
 
@@ -60,8 +60,12 @@ void Selector::Select()
 			if(fdArray[i]->WantWrite()) { FD_SET(i, &wrs); }
 		}
 	}
-	int res = select(maxFd + 1, &rds, &wrs, 0, &to);
-	if(res < 0 && errno != EINTR) { noErr = false; }
+	int res{ select(maxFd + 1, &rds, &wrs, 0, &to) };
+	if(res < 0 && errno != EINTR) { 
+	    std::string err{ "Selector in select(): " };
+	    err += strerror(errno);
+	    throw TcpServerFault(err);
+	 }
 	else if(res > 0) {
 		for(i = 0; i <= maxFd; ++i) {
 			if(!fdArray[i]) { continue; }
@@ -80,7 +84,7 @@ TcpServer TcpServer::Start(int display, Selector *sel, LEDCore *cp,
 {
 	int ls{ socket(AF_INET, SOCK_STREAM, 0) };
 	if(ls == -1)
-	    throw TcpServerException("TcpServer start fault in: socket()");
+	    throw TcpServerFault("Start() in: socket()");
 	int opt { 1 };
 	setsockopt(ls, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 	sockaddr_in addr{};
@@ -89,18 +93,18 @@ TcpServer TcpServer::Start(int display, Selector *sel, LEDCore *cp,
 	addr.sin_port = htons(port);
 	int res{ bind(ls, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) };
 	if(res == -1)
-	    throw TcpServerException("TcpServer start fault in: bind()");
+	    throw TcpServerFault("Start() in: bind()");
 	res = listen(ls, TCP_QLEN_FOR_LISTEN);
 	if(res == -1)
-	    throw TcpServerException("TcpServer start fault in: listen()");
+	    throw TcpServerFault("Start() in: listen()");
 	return TcpServer(display, sel, cp, slg, ls);
 }
 
 TcpServer::TcpServer(int fdDisp, Selector *asl, 
                      LEDCore *cp, SrvLogger *alg, int fdSrv) 
 	                      : FdHandler(fdSrv, true), disp(fdDisp), 
-	                        sel(asl), slg(alg), lcp(cp), garblist(), 
-	                        serverStop(false)
+	                        sel(asl), slg(alg), lcp(cp),
+	                        garblist(), serverStop(false)
 { 
 	asl->Add(&disp);
 	asl->Add(this);	
@@ -131,24 +135,27 @@ void TcpServer::Handle(bool r, [[maybe_unused]] bool w)
 void TcpServer::RemoveTcpSession(TcpSession *s)
 { 
 	std::string logMsg{ s->networkDetails + " has disconnected" }; 
-	close(s->GetFd());
+	sel->Remove(s);	
 	garblist.push_back(s);
-	sel->Remove(s);
 	slg->WriteLog(logMsg.c_str());
 }
 
 void TcpServer::GarbCollect()
 {
-     if(!garblist.empty()) { 
-        for(auto p : garblist) { delete p; }
-        garblist.clear();
+    auto iter = garblist.begin();
+    while(iter != garblist.end()) {      
+        TcpSession *sp = *iter;
+        close(sp->GetFd());
+        delete sp;
+        iter = garblist.erase(iter); // Erase and go to next.
     }
+
 }
 
 void TcpServer::ServerStep()
 {
-     sel->Select();
-     GarbCollect();
+    GarbCollect();
+    sel->Select();
 }
 
 
@@ -156,7 +163,7 @@ void TcpServer::ServerStep()
 
 void TcpSession::Halt()
 {
-	master->RemoveTcpSession(this);
+	master->RemoveTcpSession(this);	
 }
 
 void TcpSession::Say(const char *msg)

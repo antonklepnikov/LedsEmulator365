@@ -38,6 +38,9 @@ int process_exception(std::exception_ptr ep)
             std::rethrow_exception(ep);
         }
     }
+    catch(const TcpServerFault& e) {
+        cerr << "TCP-SERVER FAULT, " << e.what()  << endl;
+    }
     catch(const ios_base::failure& e) {
         cerr << "I/O EXCEPTION, " << e.what()  << endl;
         print_code_exception(e);

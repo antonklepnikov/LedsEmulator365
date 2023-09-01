@@ -50,13 +50,11 @@ private:
 	FdHandler **fdArray;
 	int fdArrayLen;
 	int maxFd;
-	bool noErr;
 public:
-	Selector() : fdArray(0), fdArrayLen(0), maxFd(-1), noErr(true) {}
+	Selector() : fdArray(0), fdArrayLen(0), maxFd(-1) {}
 	~Selector() { if(fdArray) delete[] fdArray; }
 	void Add(FdHandler *fdh);
 	bool Remove(FdHandler *fdh);
-	bool SelReady() const { return noErr; } 
 	void Select();
     // No copying and assignment:
     Selector(const Selector&) = delete;
@@ -125,9 +123,7 @@ public:
 	virtual void Handle(bool r, bool w);
 	void RemoveTcpSession(TcpSession *s);
 	void ServerStep();
-	bool ServerReady() const { return (!disp.windowClosed && 
-	                                   !serverStop &&
-	                                   sel->SelReady()); }
+	bool ServerReady() const { return (!disp.windowClosed && !serverStop); }
 	// No copying and assignment:
     TcpServer(const TcpServer&) = delete;
     TcpServer& operator=(const TcpServer&) = delete;	
@@ -135,11 +131,11 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////
 
-class TcpServerException : public std::exception {
+class TcpServerFault : public std::exception {
 private:
     std::string error;
 public:
-    TcpServerException(std::string_view er) : error(er) {}
+    TcpServerFault(std::string_view er) : error(er) {}
     const char* what() const noexcept override { return error.c_str(); }
 };
 

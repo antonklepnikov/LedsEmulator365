@@ -12,6 +12,8 @@
 
 ////////////////////////////////////////////////////////////////////////////////                                
 
+#include "tcp_srv.h"
+
 #include <exception>
 #include <future>
 #include <iostream>

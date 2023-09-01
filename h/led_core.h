@@ -163,7 +163,7 @@ public:
 class ModeRainbow : public Pattern {
 protected:
 	const double k_delay{ 0.1 };
-	const int k_deltaHue{ 30 };
+	int k_deltaHue{ 30 };
 	const int k_stepHue{ 5 };
 	int initHue;
     virtual void PatternStep();
