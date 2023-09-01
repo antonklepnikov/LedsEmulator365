@@ -122,7 +122,7 @@ void TcpServer::Handle(bool r, [[maybe_unused]] bool w)
 	sockaddr_in addr{};
 	socklen_t len{ sizeof(addr) };
 	int sd{ accept(GetFd(), reinterpret_cast<sockaddr*>(&addr), &len) };
-	if(sd == -1) { return; }
+	if(sd == -1) { throw TcpServerFault("Handle() in: accept()"); }
 	TcpSession *p = new TcpSession(this, sd, lcp);
 	sel->Add(p);
 	p->networkDetails = inet_ntoa(addr.sin_addr);
@@ -136,6 +136,8 @@ void TcpServer::RemoveTcpSession(TcpSession *s)
 { 
 	std::string logMsg{ s->networkDetails + " has disconnected" }; 
 	sel->Remove(s);	
+	int res{ shutdown(s->GetFd(), SHUT_RDWR) };
+	if(res != 0) { throw TcpServerFault("RemoveTcpSession() in: shutdown()"); }
 	garblist.push_back(s);
 	slg->WriteLog(logMsg.c_str());
 }
@@ -145,7 +147,8 @@ void TcpServer::GarbCollect()
     auto iter = garblist.begin();
     while(iter != garblist.end()) {      
         TcpSession *sp = *iter;
-        close(sp->GetFd());
+        int res { close(sp->GetFd()) };
+        if(res != 0) { throw TcpServerFault("GarbCollect in: close()"); }
         delete sp;
         iter = garblist.erase(iter); // Erase and go to next.
     }
