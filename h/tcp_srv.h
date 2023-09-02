@@ -48,11 +48,12 @@ public:
 
 class Selector {
 private:
+	SrvLogger *slg;
 	FdHandler **fdArray;
 	int fdArrayLen;
 	int maxFd;
 public:
-	Selector() : fdArray(0), fdArrayLen(0), maxFd(-1) {}
+	Selector(SrvLogger *s) : slg(s), fdArray(0), fdArrayLen(0), maxFd(-1) {}
 	~Selector() { if(fdArray) delete[] fdArray; }
 	void Add(FdHandler *fdh);
 	bool Remove(FdHandler *fdh);

@@ -50,7 +50,7 @@ static const char SERVER_WELCOME[] =
 	"SRV: Hello, you are connected to LEDCore!\nCLI: ";
 static const char SERVER_NEW_LINE[] = "\nCLI: ";
 
-static const char CLIENT_EXIT[] = "exit";
+static const char CLIENT_EXIT[] = "quit";
 static const char CLIENT_MODE_1[] = "m1";
 static const char CLIENT_MODE_2[] = "m2";
 static const char CLIENT_MODE_3[] = "m3";

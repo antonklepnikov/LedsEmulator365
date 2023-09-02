@@ -1,5 +1,4 @@
-CXXFLAGS = -ggdb -pedantic-errors -Wall -Weffc++ -Wextra -Wsign-conversion -Werror -std=c++20 -I ./h -I /usr/local/include
-
+CXXFLAGS = -O2 -DNDEBUG -pedantic-errors -Wall -Weffc++ -Wextra -Wsign-conversion -Werror -std=c++20 -I ./h -I /usr/local/include
 
 fastled_port.o: fastled_port.cpp ./h/fastled_port.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -30,7 +29,7 @@ process_exception.o: process_exception.cpp ./h/process_exception.h ./h/tcp_srv.h
 
 
 build: main.cpp fastled_port.o led_core.o led_gui.o srv_logger.o tcp_srv.o main_loop.o process_exception.o ./h/common.h ./h/led_core.h ./h/tcp_srv.h ./h/led_gui.h ./h/main_loop.h ./h/process_exception.h 
-	$(CXX) $(CXXFLAGS) main.cpp fastled_port.o led_core.o led_gui.o srv_logger.o tcp_srv.o main_loop.o process_exception.o -o le365 -lfltk -lX11 -lboost_log -lboost_thread
+	$(CXX) $(CXXFLAGS) main.cpp fastled_port.o led_core.o led_gui.o srv_logger.o tcp_srv.o main_loop.o process_exception.o -o le365r -lfltk -lX11 -lboost_log -lboost_thread
 
 
 clean:

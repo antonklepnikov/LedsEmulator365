@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
         logMsg += SERVER_LOG_FILE;
         logger.WriteLog(logMsg.c_str());
         
-        Selector selector;
+        Selector selector(&logger);
         LEDCore core;
 
         TcpServer server{ TcpServer::Start(

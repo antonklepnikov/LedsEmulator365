@@ -64,6 +64,7 @@ void Selector::Select()
 	if(res < 0 && errno != EINTR) { 
 	    std::string err{ "Selector in select(): " };
 	    err += strerror(errno);
+	    slg->WriteLog(err.c_str());
 	    throw TcpServerFault(err);
 	 }
 	else if(res > 0) {
@@ -83,8 +84,10 @@ TcpServer TcpServer::Start(int display, Selector *sel, LEDCore *cp,
                            SrvLogger *slg, int port)
 {
 	int ls{ socket(AF_INET, SOCK_STREAM, 0) };
-	if(ls == -1)
+	if(ls == -1) {
+		slg->WriteLog("TcpServerFault(Start() in: socket())");
 	    throw TcpServerFault("Start() in: socket()");
+	}
 	int opt { 1 };
 	setsockopt(ls, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 	sockaddr_in addr{};
@@ -92,11 +95,15 @@ TcpServer TcpServer::Start(int display, Selector *sel, LEDCore *cp,
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	addr.sin_port = htons(port);
 	int res{ bind(ls, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) };
-	if(res == -1)
+	if(res == -1) {
+	    slg->WriteLog("TcpServerFault(Start() in: bind())");
 	    throw TcpServerFault("Start() in: bind()");
+	}
 	res = listen(ls, TCP_QLEN_FOR_LISTEN);
-	if(res == -1)
+	if(res == -1) {
+	    slg->WriteLog("TcpServerFault(Start() in: listen())");
 	    throw TcpServerFault("Start() in: listen()");
+	}
 	return TcpServer(display, sel, cp, slg, ls);
 }
 
@@ -122,7 +129,10 @@ void TcpServer::Handle(bool r, [[maybe_unused]] bool w)
 	sockaddr_in addr{};
 	socklen_t len{ sizeof(addr) };
 	int sd{ accept(GetFd(), reinterpret_cast<sockaddr*>(&addr), &len) };
-	if(sd == -1) { throw TcpServerFault("Handle() in: accept()"); }
+	if(sd == -1) { 
+		slg->WriteLog("TcpServerFault(Handle() in: accept())");
+		throw TcpServerFault("Handle() in: accept()"); 
+	}
 	TcpSession *p = new TcpSession(this, sd, lcp);
 	sel->Add(p);
 	p->networkDetails = inet_ntoa(addr.sin_addr);
@@ -136,8 +146,18 @@ void TcpServer::RemoveTcpSession(TcpSession *s)
 { 
 	std::string logMsg{ s->networkDetails + " has disconnected" }; 
 	sel->Remove(s);	
-	int res{ shutdown(s->GetFd(), SHUT_RDWR) };
-	if(res != 0) { throw TcpServerFault("RemoveTcpSession() in: shutdown()"); }
+	int res{ 0 };
+	int fd{ s->GetFd() };
+	res = shutdown(fd, SHUT_RDWR);
+	if(res != 0) { 
+		slg->WriteLog("TcpServerFault(RemoveTcpSession() in: shutdown())");
+		throw TcpServerFault("RemoveTcpSession() in: shutdown()");
+	}
+	res = close(fd);
+	if(res != 0) {
+		slg->WriteLog("TcpServerFault(RemoveTcpSession() in: close()");
+		throw TcpServerFault("RemoveTcpSession() in: close()"); 
+	}
 	garblist.push_back(s);
 	slg->WriteLog(logMsg.c_str());
 }
@@ -146,19 +166,16 @@ void TcpServer::GarbCollect()
 {
     auto iter = garblist.begin();
     while(iter != garblist.end()) {      
-        TcpSession *sp = *iter;
-        int res { close(sp->GetFd()) };
-        if(res != 0) { throw TcpServerFault("GarbCollect in: close()"); }
-        delete sp;
-        iter = garblist.erase(iter); // Erase and go to next.
+		delete *iter; // Delete session object.
+        iter = garblist.erase(iter); // Erase std::list item and go to next.
     }
 
 }
 
 void TcpServer::ServerStep()
 {
-    GarbCollect();
     sel->Select();
+    GarbCollect();
 }
 
 
