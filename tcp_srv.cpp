@@ -52,8 +52,8 @@ void Selector::Select()
 	FD_ZERO(&rds);
     FD_ZERO(&wrs);
 	timeval to;
-    to.tv_sec = SELECT_DELAY_SEC;
-    to.tv_usec = SELECT_DELAY_USEC;
+    to.tv_sec   = le365const::select_delay_sec;
+    to.tv_usec  = le365const::select_delay_usec;
 	for(i = 0; i <= maxFd; ++i) {
 		if(fdArray[i]) {
 			if(fdArray[i]->WantRead()) { FD_SET(i, &rds); }
@@ -99,7 +99,7 @@ TcpServer TcpServer::Start(int display, Selector *sel, LEDCore *cp,
 	    slg->WriteLog("TcpServerFault(Start() in: bind())");
 	    throw TcpServerFault("Start() in: bind()");
 	}
-	res = listen(ls, TCP_QLEN_FOR_LISTEN);
+	res = listen(ls, le365const::tcp_qlen_for_listen);
 	if(res == -1) {
 	    slg->WriteLog("TcpServerFault(Start() in: listen())");
 	    throw TcpServerFault("Start() in: listen()");
@@ -193,40 +193,56 @@ void TcpSession::Say(const char *msg)
 
 TcpSession::TcpSession(TcpServer *am, int fd, LEDCore *cp) 
 	: FdHandler(fd, true), bufUsed(0), ignoring(false), master(am), cpi(),
-        handleMap{{ CLIENT_EXIT,    [this]() { this->ServerAnswer("Bye!");      
-                                               this->Halt(); }},
-                  { CLIENT_MODE_1,  [this]() { this->ServerAnswer("Mode=1");
-                                               this->cpi.Mode(mode_1); }},
-                  { CLIENT_MODE_2,  [this]() { this->ServerAnswer("Mode=2");
-                                               this->cpi.Mode(mode_2); }},
-                  { CLIENT_MODE_3,  [this]() { this->ServerAnswer("Mode=3");
-                                               this->cpi.Mode(mode_3); }},
-                  { CLIENT_MODE_4,  [this]() { this->ServerAnswer("Mode=4");
-                                               this->cpi.Mode(mode_4); }},
-                  { CLIENT_MODE_5,  [this]() { this->ServerAnswer("Mode=5");
-                                               this->cpi.Mode(mode_5); }},
-                  { CLIENT_MODE_6,  [this]() { this->ServerAnswer("Mode=6");    
-                                               this->cpi.Mode(mode_6); }},
-                  { CLIENT_MODE_7,  [this]() { this->ServerAnswer("Mode=7");
-                                               this->cpi.Mode(mode_7); }},
-                  { CLIENT_MODE_8,  [this]() { this->ServerAnswer("Mode=8");
-                                               this->cpi.Mode(mode_8); }},
-                  { CLIENT_MODE_9,  [this]() { this->ServerAnswer("Mode=9");
-                                               this->cpi.Mode(mode_9); }},
-                  { CLIENT_UP,      [this]() { this->ServerAnswer("Up");
-                                               this->cpi.Up(); }},
-                  { CLIENT_DOWN,    [this]() { this->ServerAnswer("Down");   
-                                               this->cpi.Down(); }},
-                  { CLIENT_RIGHT,   [this]() { this->ServerAnswer("Right");     
-                                               this->cpi.Right(); }},
-                  { CLIENT_LEFT,    [this]() { this->ServerAnswer("Left");      
-                                               this->cpi.Left(); }},
-                  { CLIENT_OK,      [this]() { this->ServerAnswer("Ok");
-                                               this->cpi.Ok(); }}
+        handleMap{
+                    { le365const::client_exit.data(),
+                        [this]() { this->ServerAnswer("Bye!");      
+                                   this->Halt(); }},
+                    { le365const::client_mode_1.data(),
+                        [this]() { this->ServerAnswer("Mode=1");
+                                   this->cpi.Mode(mode_1); }},
+                    { le365const::client_mode_2.data(),
+                        [this]() { this->ServerAnswer("Mode=2");
+                                   this->cpi.Mode(mode_2); }},
+                    { le365const::client_mode_3.data(),
+                        [this]() { this->ServerAnswer("Mode=3");
+                                   this->cpi.Mode(mode_3); }},
+                    { le365const::client_mode_4.data(),
+                        [this]() { this->ServerAnswer("Mode=4");
+                                   this->cpi.Mode(mode_4); }},
+                    { le365const::client_mode_5.data(),
+                        [this]() { this->ServerAnswer("Mode=5");
+                                   this->cpi.Mode(mode_5); }},
+                    { le365const::client_mode_6.data(),
+                        [this]() { this->ServerAnswer("Mode=6");    
+                                   this->cpi.Mode(mode_6); }},
+                    { le365const::client_mode_7.data(),
+                        [this]() { this->ServerAnswer("Mode=7");
+                                   this->cpi.Mode(mode_7); }},
+                    { le365const::client_mode_8.data(),
+                        [this]() { this->ServerAnswer("Mode=8");
+                                   this->cpi.Mode(mode_8); }},
+                    { le365const::client_mode_9.data(),
+                        [this]() { this->ServerAnswer("Mode=9");
+                                   this->cpi.Mode(mode_9); }},
+                    { le365const::client_up.data(),
+                        [this]() { this->ServerAnswer("Up");
+                                   this->cpi.Up(); }},
+                    { le365const::client_down.data(),
+                        [this]() { this->ServerAnswer("Down");   
+                                   this->cpi.Down(); }},
+                    { le365const::client_right.data(),
+                        [this]() { this->ServerAnswer("Right");     
+                                   this->cpi.Right(); }},
+                    { le365const::client_left.data(),
+                        [this]() { this->ServerAnswer("Left");      
+                                   this->cpi.Left(); }},
+                    { le365const::client_ok.data(),
+                        [this]() { this->ServerAnswer("Ok");
+                                   this->cpi.Ok(); }}
                  }
 { 
 	cpi.Init(cp);
-	Say(SERVER_WELCOME); 
+	Say(le365const::server_welcome.data()); 
 }
 
 void TcpSession::Handle(bool r, [[maybe_unused]] bool w)
@@ -300,7 +316,7 @@ void TcpSession::ProcessLine(const char *str)
 
 void TcpSession::ServerAnswer(const char *str)
 {
-	const char *srvStr{ SERVER_NEW_LINE };
+	const char *srvStr{ le365const::server_new_line.data() };
 	int lenSrvStr{ static_cast<int>(strlen(srvStr)) };
 	int lenStr{ static_cast<int>(strlen(str)) };
 	char *msg = new char[lenStr + lenSrvStr];

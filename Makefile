@@ -1,4 +1,4 @@
-CXXFLAGS = -O2 -DNDEBUG -pedantic-errors -Wall -Weffc++ -Wextra -Wsign-conversion -Werror -std=c++20 -I ./h -I /usr/local/include
+CXXFLAGS = -s -O2 -DNDEBUG -pedantic-errors -Wall -Weffc++ -Wextra -Wsign-conversion -Werror -std=c++20 -I ./h -I /usr/local/include
 
 fastled_port.o: fastled_port.cpp ./h/fastled_port.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@

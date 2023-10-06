@@ -30,7 +30,7 @@ private:
     TcpServer *srv;
     LEDCore *core;
     
-    std::array<OOFLButton*, NUM_ALL_BUTTONS> buttons;
+    std::array<OOFLButton*, le365const::num_all_buttons> buttons;
     
     ModeRainbow 			rainbow;									   // 1
     ModeRainbowMeteor 		rainbowMeteor;      						   // 2

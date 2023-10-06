@@ -75,7 +75,7 @@ typedef std::function<void()> HandleFn;
 class TcpSession : private FdHandler {
 friend class TcpServer;
 private:
-	char buffer[TCP_LINE_MAX_LENGTH + 1];
+	char buffer[ le365const::tcp_line_max_length + 1 ];
 	int bufUsed;
 	bool ignoring;
 	std::string networkDetails{};

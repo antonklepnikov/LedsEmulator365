@@ -20,6 +20,9 @@
 #include <FL/platform.H>
 #include <X11/Xlib.h>
 
+#include <array>
+#include <string>
+
                                     
 ////////////////////////////////////////////////////////////////////////////////
 /// CLASS: LED /////////////////////////////////////////////////////////////////
@@ -27,7 +30,8 @@
 
 class LED : public OOFLBox {
 public:
-    LED(int x, int y) : OOFLBox(x, y, ITEM_SIZE, ITEM_SIZE) 
+    LED(int x, int y) : OOFLBox(x, y, le365const::item_size,
+                                      le365const::item_size) 
     {
         box(FL_OVAL_BOX);
         color(FL_BLACK);
@@ -44,7 +48,8 @@ protected:
     LEDCore *core;
 public:
     Pult(int x, int y, const char *lb, LEDCore *c)
-        : OOFLButton(x, y, ITEM_SIZE, ITEM_SIZE, lb), core(c) 
+        : OOFLButton(x, y, le365const::item_size, 
+                           le365const::item_size, lb), core(c) 
     {
         box(FL_FLAT_BOX);
         color(FL_GRAY);
@@ -62,28 +67,28 @@ private:
 public:
     ModeButton(int x, int y, const char *lb, LEDCore *c, enum_mode m)
         : Pult(x, y, lb, c), mode(m)
-            { labelsize(FONT_SIZE_DIGIT_BUTTON); }
+            { labelsize(le365const::font_size_digit_button); }
     virtual void OnPress() { core->SetMode(mode); }
 };
 
 class OkButton : public Pult {
 public:
     OkButton(int x, int y, const char *lb, LEDCore *c)
-        : Pult(x, y, lb, c) { labelsize(FONT_SIZE_CONTROL_BUTTON); }
+        : Pult(x, y, lb, c) { labelsize(le365const::font_size_control_button); }
     virtual void OnPress() { core->StopMode();  }
 };
 
 class BrightUpButton : public Pult {
 public:
     BrightUpButton(int x, int y, const char *lb, LEDCore *c)
-        : Pult(x, y, lb, c) { labelsize(FONT_SIZE_CONTROL_BUTTON); }
+        : Pult(x, y, lb, c) { labelsize(le365const::font_size_control_button); }
     virtual void OnPress() { core->BrightUp(); }
 };
 
 class BrightDownButton : public Pult {
 public:
     BrightDownButton(int x, int y, const char *lb, LEDCore *c)
-        : Pult(x, y, lb, c) { labelsize(FONT_SIZE_CONTROL_BUTTON); }
+        : Pult(x, y, lb, c) { labelsize(le365const::font_size_control_button); }
     virtual void OnPress() { core->BrightDown(); }
 };
 
@@ -91,14 +96,14 @@ public:
 class BrowseLeftButton : public Pult {
 public:
     BrowseLeftButton(int x, int y, const char *lb, LEDCore *c)
-        : Pult(x, y, lb, c) { labelsize(FONT_SIZE_CONTROL_BUTTON); }
+        : Pult(x, y, lb, c) { labelsize(le365const::font_size_control_button); }
     virtual void OnPress() { core->PrevMode(); }
 };
 
 class BrowseRightButton : public Pult {
 public:
     BrowseRightButton(int x, int y, const char *lb, LEDCore *c)
-        : Pult(x, y, lb, c) { labelsize(FONT_SIZE_CONTROL_BUTTON); }
+        : Pult(x, y, lb, c) { labelsize(le365const::font_size_control_button); }
     virtual void OnPress() { core->NextMode(); }
 };
 

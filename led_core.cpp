@@ -27,16 +27,16 @@ void LEDCore::SetMode(enum_mode m)
 void LEDCore::BrightUp()
 {
     int b{ GetBright() };
-    b += STEP_BRIGHT;
-    if(b > MAX_BRIGHT) { SetBright(MAX_BRIGHT); } 
+    b += le365const::step_bright;
+    if(b > le365const::max_bright) { SetBright(le365const::max_bright); } 
     else { SetBright(b); }
 }
 
 void LEDCore::BrightDown()
 {
     int b{ GetBright() };
-    b -= STEP_BRIGHT;
-    if(b < MIN_BRIGHT) { SetBright(MIN_BRIGHT); } 
+    b -= le365const::step_bright;
+    if(b < le365const::min_bright) { SetBright(le365const::min_bright); } 
     else { SetBright(b); }
 }
 
@@ -79,17 +79,19 @@ void LEDCore::NextMode()
 
 void LEDCore::Show()
 {
-    if(bright == MAX_BRIGHT) {
-        for(size_t i = 0; i < NUM_LEDS; ++i) {
+    if(bright == le365const::max_bright) {
+        for(size_t i = 0; i < le365const::num_leds; ++i) {
             leds.at(i)->color(fl_rgb_color(fstleds[i].GetIntR(),
                                            fstleds[i].GetIntG(),
                                            fstleds[i].GetIntB()));
             leds.at(i)->redraw();
         }
-    } else if(bright < MAX_BRIGHT && bright > MIN_BRIGHT) {
+    } else if(bright < le365const::max_bright && 
+              bright > le365const::min_bright) {
         RGBLed led{};
-        for(size_t i = 0; i < NUM_LEDS; ++i) {
-            double ratio = bright / static_cast<double>(PRECISION_BRIGHT);
+        for(size_t i = 0; i < le365const::num_leds; ++i) {
+            double ratio =
+                bright / static_cast<double>(le365const::precision_bright);
             led.r = ratio * fstleds[i].GetIntR();
             led.g = ratio * fstleds[i].GetIntG();
             led.b = ratio * fstleds[i].GetIntB();
@@ -108,12 +110,12 @@ void LEDCore::Clear()
 {
     for(auto& fl : fstleds)
         fl.SetIntRGB(0, 0, 0); // Black;
-    if(bright == MAX_BRIGHT) { 
+    if(bright == le365const::max_bright) { 
         Show(); 
         return; 
     } else {
         int current_bright = bright;
-        bright = MAX_BRIGHT;
+        bright = le365const::max_bright;
         Show();
         bright = current_bright;
     }
@@ -168,7 +170,7 @@ void fill_in_turn(LEDCore *core,
                   size_t shift_color)
 {
 	size_t ccount{ carr.size() };
-	for(size_t ptr = 0; ptr < NUM_LEDS; ++ptr)
+	for(size_t ptr = 0; ptr < le365const::num_leds; ++ptr)
 		(*core)[ptr] = carr.at((ptr + shift_color) % ccount);
 }
 
@@ -178,12 +180,16 @@ void fill_in_turn(LEDCore *core,
 
 void Pattern::SaveState()
 {
-	for(size_t i = 0; i < NUM_LEDS; ++i) { ledDump.at(i) = (*core)[i]; }
+	for(size_t i = 0; i < le365const::num_leds; ++i) { 
+	    ledDump.at(i) = (*core)[i];
+	}
 }
 
 void Pattern::LoadState()
 {
-	for(size_t i = 0; i < NUM_LEDS; ++i) { (*core)[i] = ledDump.at(i); }
+	for(size_t i = 0; i < le365const::num_leds; ++i) { 
+	    (*core)[i] = ledDump.at(i);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -199,7 +205,7 @@ void ModeStop::PatternStep()
 
 void ModeRainbow::PatternStep()
 {
-    fill_rainbow(core->GetFstleds(), NUM_LEDS, initHue, k_deltaHue);
+    fill_rainbow(core->GetFstleds(), le365const::num_leds, initHue, k_deltaHue);
     initHue -= k_stepHue;
     if(initHue < 0) { initHue = 255; }
     core->SetLongWait(k_delay);
@@ -209,7 +215,7 @@ void ModeRainbow::PatternStep()
 
 void ModeRainbowMeteor::FadeAll()
 {
-    for(int i = 0; i < NUM_LEDS; ++i) {
+    for(int i = 0; i < le365const::num_leds; ++i) {
         (*core)[i].Nscale8(247);
     }
 }
@@ -222,7 +228,7 @@ void ModeRainbowMeteor::PatternStep()
         (*core)[it] = CHSV(hue, 255, 255);
         FadeAll();
 		++it;
-		if(it == (NUM_LEDS - 1)) { dirForward = false; }
+		if(it == (le365const::num_leds - 1)) { dirForward = false; }
 	} else {
         ++hue;
         if(hue < 0) { hue = 255; }
@@ -239,13 +245,13 @@ void ModeRainbowMeteor::PatternStep()
 void ModeRainbowGlitter::AddGlitter(int chance)
 {
 	if(prandom_range(100) <= chance) {
-	    (*core)[prandom_range(NUM_LEDS) - 1] += CRGB::White;
+	    (*core)[prandom_range(le365const::num_leds) - 1] += CRGB::White;
 	}
 }
 
 void ModeRainbowGlitter::PatternStep()
 {
-    fill_rainbow(core->GetFstleds(), NUM_LEDS, initHue, k_deltaHue);
+    fill_rainbow(core->GetFstleds(), le365const::num_leds, initHue, k_deltaHue);
     AddGlitter(k_chanceGlitter1);
     AddGlitter(k_chanceGlitter2);
     initHue -= k_stepHue;
@@ -258,7 +264,7 @@ void ModeRainbowGlitter::PatternStep()
 void ModeStars::PatternStep()
 {
     // Restore leds state:
-    for(size_t i = 0; i < NUM_LEDS; ++i) {
+    for(size_t i = 0; i < le365const::num_leds; ++i) {
         if(stars.test(i)) { 
             (*core)[i] = star_col; 
         } else { 
@@ -267,14 +273,16 @@ void ModeStars::PatternStep()
     }
 	//Random stars or base:
 	if(filling) {
-	    do { random_led = static_cast<size_t>(prandom_range(NUM_LEDS) - 1);
+	    do { random_led = 
+	        static_cast<size_t>(prandom_range(le365const::num_leds) - 1);
 	    } while(stars.test(random_led));
 	    stars.set(random_led);
 	    ++star_count;
-	    if(star_count == NUM_LEDS) { filling = false; }
+	    if(star_count == le365const::num_leds) { filling = false; }
 	}
 	else {
-		do { random_led = static_cast<size_t>(prandom_range(NUM_LEDS) - 1);
+		do { random_led = 
+		    static_cast<size_t>(prandom_range(le365const::num_leds) - 1);
 		} while(!stars.test(random_led));
 		stars.reset(random_led);
 		--star_count;
@@ -302,7 +310,7 @@ void ModePacifica::pacifica_one_layer(CRGBPalette16& p,
 	uint16_t ci = cistart;
 	uint16_t waveangle = ioff;
 	uint16_t wavescale_half = (wavescale / 2) + 20;
-	for(uint16_t i = 0; i < NUM_LEDS; i++) {
+	for(uint16_t i = 0; i < le365const::num_leds; i++) {
     	waveangle += 250;
     	uint16_t s16 = sin16(waveangle) + 32768;
     	uint16_t cs = scale16(s16, wavescale_half) + wavescale_half;
@@ -318,7 +326,7 @@ void ModePacifica::pacifica_add_whitecaps()
 {
 	uint8_t basethreshold = beatsin8(core->GetMillis(), 9, 55, 65);
 	uint8_t wave = beat8(core->GetMillis(), 7);  
-	for(uint16_t i = 0; i < NUM_LEDS; i++) {
+	for(uint16_t i = 0; i < le365const::num_leds; i++) {
   		uint8_t threshold = scale8(sin8(wave), 20) + basethreshold;
     	wave += 7;
     	uint8_t l = (*core)[i].GetAverageLight();
@@ -350,7 +358,7 @@ void ModePacifica::PatternStep()
 	sCIStart4 -= (deltams2 * beatsin88(core->GetMillis(), 257, 4, 6));
 
 	// Clear out the LED array to a dim background blue-green
-	fill_solid(core->GetFstleds(), NUM_LEDS, CRGB(4, 72, 87));
+	fill_solid(core->GetFstleds(), le365const::num_leds, CRGB(4, 72, 87));
 
 	// Render each of four layers, with different scales and speeds, that vary over time
 	pacifica_one_layer(pacifica_palette_1, sCIStart1, 
@@ -394,7 +402,7 @@ void ModeCMYK::PatternStep()
 
 void ModeWhite::PatternStep()
 {
-    fill_solid(core->GetFstleds(), NUM_LEDS, CRGB::White);
+    fill_solid(core->GetFstleds(), le365const::num_leds, CRGB::White);
     core->SetLongWait(k_delay);
 }
 

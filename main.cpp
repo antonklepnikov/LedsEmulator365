@@ -57,9 +57,9 @@ int main(int argc, char *argv[])
         
     try {    
         
-        SrvLogger logger(SERVER_LOG_FILE);
+        SrvLogger logger(le365const::server_log_file.data());
         std::string logMsg{ "Logs are recorded in: " };
-        logMsg += SERVER_LOG_FILE;
+        logMsg += le365const::server_log_file;
         logger.WriteLog(logMsg.c_str());
         
         Selector selector(&logger);

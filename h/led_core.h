@@ -32,15 +32,15 @@ class LEDCore {
 private:
     Timer mainTimer;    
     Timer waitTimer;
-    std::array<OOFLBox*, NUM_LEDS> leds;
-    std::array<CRGB, NUM_LEDS> fstleds;
+    std::array<OOFLBox*, le365const::num_leds> leds;
+    std::array<CRGB, le365const::num_leds> fstleds;
     enum_mode currentMode{ mode_null };
     enum_mode befStopMode{ mode_null };
     bool isStop{ false };
     bool core_quit_flag{ false };
     bool in_waiting{ false };
     double wait_for{ 0.0 };    
-    int bright{ INIT_BRIGHT };
+    int bright{ le365const::init_bright };
     const int k_min_num_mode{ 1 };
     const int k_max_num_mode{ 9 };
 public:
@@ -118,7 +118,7 @@ class Pattern {
 protected:
     LEDCore* core;
     enum_mode mode;
-    std::array<CRGB, NUM_LEDS> ledDump;
+    std::array<CRGB, le365const::num_leds> ledDump;
     virtual void PatternStep() = 0;
 public:
     Pattern(LEDCore *c, enum_mode m) : core(c), mode(m), ledDump()
@@ -213,7 +213,7 @@ public:
 class ModeStars : public Pattern {
 protected:
 	const double k_delay{ 0.1 };
-	std::bitset<NUM_LEDS> stars;
+	std::bitset<le365const::num_leds> stars;
 	size_t random_led;
 	int star_count;
 	bool filling;
