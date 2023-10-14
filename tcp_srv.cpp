@@ -61,13 +61,13 @@ void Selector::Select()
 		}
 	}
 	int res{ select(maxFd + 1, &rds, &wrs, 0, &to) };
-	if(res < 0 && errno != EINTR) { 
+	if(res < 0 && errno != EINTR) [[unlikely]] { 
 	    std::string err{ "Selector in select(): " };
 	    err += strerror(errno);
 	    slg->WriteLog(err.c_str());
 	    throw TcpServerFault(err);
 	 }
-	else if(res > 0) {
+	else if(res > 0) [[likely]] {
 		for(i = 0; i <= maxFd; ++i) {
 			if(!fdArray[i]) { continue; }
 			bool r = FD_ISSET(i, &rds);
@@ -84,7 +84,7 @@ TcpServer TcpServer::Start(int display, Selector *sel, LEDCore *cp,
                            SrvLogger *slg, int port)
 {
 	int ls{ socket(AF_INET, SOCK_STREAM, 0) };
-	if(ls == -1) {
+	if(ls == -1) [[unlikely]] {
 		slg->WriteLog("TcpServerFault(Start() in: socket())");
 	    throw TcpServerFault("Start() in: socket()");
 	}
@@ -95,12 +95,12 @@ TcpServer TcpServer::Start(int display, Selector *sel, LEDCore *cp,
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	addr.sin_port = htons(port);
 	int res{ bind(ls, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) };
-	if(res == -1) {
+	if(res == -1) [[unlikely]] {
 	    slg->WriteLog("TcpServerFault(Start() in: bind())");
 	    throw TcpServerFault("Start() in: bind()");
 	}
 	res = listen(ls, le365const::tcp_qlen_for_listen);
-	if(res == -1) {
+	if(res == -1) [[unlikely]] {
 	    slg->WriteLog("TcpServerFault(Start() in: listen())");
 	    throw TcpServerFault("Start() in: listen()");
 	}
@@ -125,11 +125,11 @@ TcpServer::~TcpServer()
 
 void TcpServer::Handle(bool r, [[maybe_unused]] bool w)
 {
-	if(!r) { return; }
+	if(!r) [[unlikely]] { return; }
 	sockaddr_in addr{};
 	socklen_t len{ sizeof(addr) };
 	int sd{ accept(GetFd(), reinterpret_cast<sockaddr*>(&addr), &len) };
-	if(sd == -1) { 
+	if(sd == -1) [[unlikely]] { 
 		slg->WriteLog("TcpServerFault(Handle() in: accept())");
 		throw TcpServerFault("Handle() in: accept()"); 
 	}
@@ -149,12 +149,12 @@ void TcpServer::RemoveTcpSession(TcpSession *s)
 	int res{ 0 };
 	int fd{ s->GetFd() };
 	res = shutdown(fd, SHUT_RDWR);
-	if(res != 0) { 
+	if(res != 0) [[unlikely]] { 
 		slg->WriteLog("TcpServerFault(RemoveTcpSession() in: shutdown())");
 		throw TcpServerFault("RemoveTcpSession() in: shutdown()");
 	}
 	res = close(fd);
-	if(res != 0) {
+	if(res != 0) [[unlikely]] {
 		slg->WriteLog("TcpServerFault(RemoveTcpSession() in: close()");
 		throw TcpServerFault("RemoveTcpSession() in: close()"); 
 	}
@@ -247,7 +247,7 @@ TcpSession::TcpSession(TcpServer *am, int fd, LEDCore *cp)
 
 void TcpSession::Handle(bool r, [[maybe_unused]] bool w)
 {
-	if(!r) { return; }
+	if(!r) [[unlikely]] { return; }
 	if(bufUsed >= static_cast<int>(sizeof(buffer))) {
 		bufUsed = 0;
 		ignoring = true;
@@ -330,8 +330,8 @@ void TcpSession::ServerAnswer(const char *str)
 
 void DisplaySession::Handle(bool r, [[maybe_unused]] bool w)
 {
-	if(!r) { return; }
-	if(!Fl::check()) { windowClosed = true; }
+	if(!r) [[unlikely]] { return; }
+	if(!Fl::check()) [[unlikely]] { windowClosed = true; }
 }
 
 
